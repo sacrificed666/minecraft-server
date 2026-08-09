@@ -1,0 +1,40 @@
+---
+# Prepares an Ubuntu 26.04 host to run this stack, then deploys it.
+#
+#   ansible-playbook site.yml                 # everything
+#   ansible-playbook site.yml --tags deploy   # just pull and restart
+#
+# Every task is idempotent: running it twice changes nothing the second time.
+# Task names follow "emoji type | what", so the output reads as phases.
+#
+# Roles run in order and each assumes the previous one finished: firewall
+# expects ufw from common, minecraft expects Docker. Running a later tag alone
+# is fine on a host that has already been provisioned once.
+- name: ⛏️ Minecraft | Server host
+  hosts: all
+  become: true
+
+  pre_tasks:
+    - name: 🔍 Check | Host runs Ubuntu
+      ansible.builtin.assert:
+        that: ansible_facts.distribution == "Ubuntu"
+        fail_msg: >-
+          This playbook targets Ubuntu 26.04. Found
+          {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}.
+      tags: [always]
+
+  roles:
+    - role: common
+      tags: [common]
+
+    - role: hardening
+      tags: [hardening]
+
+    - role: docker
+      tags: [docker]
+
+    - role: firewall
+      tags: [firewall]
+
+    - role: minecraft
+      tags: [deploy]

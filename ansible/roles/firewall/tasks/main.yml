@@ -1,0 +1,42 @@
+---
+# SSH is allowed before the defaults are set and ufw is enabled — any other
+# order can lock the playbook out of the host mid-run.
+#
+# The command form is used rather than community.general.ufw so the playbook
+# needs nothing from Galaxy.
+
+- name: 🔥 Config | Allow SSH
+  ansible.builtin.command: ufw allow {{ ansible_port | default(22) }}/tcp
+  register: ufw_ssh
+  changed_when: "'Rule added' in ufw_ssh.stdout or 'Rules updated' in ufw_ssh.stdout"
+
+- name: 🔥 Config | Allow the game and web ports
+  ansible.builtin.command: ufw allow {{ item }}/tcp
+  loop: "{{ open_ports }}"
+  register: ufw_ports
+  changed_when: "'Rule added' in ufw_ports.stdout or 'Rules updated' in ufw_ports.stdout"
+
+- name: 🔒 Harden | Default deny incoming
+  ansible.builtin.command: ufw default deny incoming
+  register: ufw_in
+  changed_when: "'updated' in ufw_in.stdout"
+
+- name: ⚙️ Config | Default allow outgoing
+  ansible.builtin.command: ufw default allow outgoing
+  register: ufw_out
+  changed_when: "'updated' in ufw_out.stdout"
+
+- name: 🔥 Config | Enable ufw
+  ansible.builtin.command: ufw --force enable
+  register: ufw_enable
+  changed_when: "'active' in ufw_enable.stdout"
+
+# Docker publishes ports by writing iptables rules that bypass ufw's INPUT
+# chain, so a published port is reachable even when ufw claims to deny it.
+# compose.yaml handles this by binding RCON, the panel and the map to
+# loopback; ufw is defence in depth here, not the only control.
+- name: 📊 Report | Docker bypasses ufw
+  ansible.builtin.debug:
+    msg: >-
+      ufw does not filter Docker-published ports. Anything bound to 0.0.0.0 in
+      compose.yaml is reachable regardless of these rules.

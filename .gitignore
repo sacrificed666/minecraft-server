@@ -1,0 +1,42 @@
+# ─── Secrets and local config ───
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ─── Server runtime state ───
+# World, logs, downloaded jars and the built modpack: too large for git, and
+# fully reproducible from compose.yaml + server/mods.txt.
+#
+# The directories themselves are kept with a .gitkeep. Without them Docker
+# creates the bind-mount targets as root, and the container — which runs as
+# PUID — cannot write to its own data directory.
+/server/data/*
+!/server/data/.gitkeep
+/server/backups/*
+!/server/backups/.gitkeep
+/server/modpack/*
+!/server/modpack/.gitkeep
+
+# ─── Admin panel build artefacts ───
+/admin/node_modules/
+/admin/.next/
+/admin/next-env.d.ts
+
+# ─── Ansible ───
+# inventory.yml is committed on purpose — it holds no secrets
+/ansible/*.retry
+
+# ─── Tooling and agent state ───
+.claude/
+.cursor/
+.aider*
+.vscode/
+.idea/
+
+# ─── OS and editor noise ───
+.DS_Store
+Thumbs.db
+*.swp
+*~
+*.log

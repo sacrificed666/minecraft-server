@@ -1,0 +1,23 @@
+---
+timezone: Europe/Kyiv
+
+# The unprivileged account that owns the deployment and runs Docker
+deploy_user: mc
+
+# A 12 GB host running an 8 GB heap has little room to spare. Swap is not a
+# substitute for RAM, but it stops a transient spike from killing the JVM.
+# Set to 0 to skip it.
+swap_gb: 4
+
+common_packages:
+  - ca-certificates
+  - curl
+  - git
+  - make
+  - zip
+  - ufw
+  - unattended-upgrades
+  - rsync
+
+# Minecraft opens a lot of region files and the JVM maps many at once
+nofile_limit: 65535

@@ -1,0 +1,289 @@
+name: minecraft
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+services:
+  # ─── Minecraft server ───
+  minecraft:
+    image: itzg/minecraft-server:stable-java21
+    container_name: minecraft
+    restart: unless-stopped
+    logging: *default-logging
+    stdin_open: true
+    tty: true
+    stop_grace_period: 3m
+
+    ports:
+      - "${SERVER_PORT:-25565}:25565/tcp"
+      - "${RCON_BIND:-127.0.0.1}:${RCON_PORT:-25575}:25575/tcp"
+      - "${MAP_BIND:-127.0.0.1}:${MAP_PORT:-8100}:8100/tcp"
+
+    environment:
+      EULA: "${EULA:-FALSE}"
+      TZ: "${TZ:-Europe/Kyiv}"
+      UID: "${PUID:-1000}"
+      GID: "${PGID:-1000}"
+
+      TYPE: "NEOFORGE"
+      VERSION: "${MC_VERSION:-1.21.1}"
+      NEOFORGE_VERSION: "${NEOFORGE_VERSION:-21.1.248}"
+
+      # Aikar's flags assume a fixed heap: keep INIT == MAX
+      INIT_MEMORY: "${INIT_MEMORY:-8G}"
+      MAX_MEMORY: "${MAX_MEMORY:-8G}"
+      USE_AIKAR_FLAGS: "true"
+      MAX_TICK_TIME: "${MAX_TICK_TIME:-60000}"
+      EXEC_DIRECTLY: "true"
+
+      MODRINTH_PROJECTS: "@/extras/mods.txt"
+      MODRINTH_DOWNLOAD_DEPENDENCIES: "required"
+      MODRINTH_PROJECTS_DEFAULT_VERSION_TYPE: "release"
+
+      # Fallbacks mirror .env.example; keep the two in sync
+      MOTD: "${MOTD:-A Minecraft Server}"
+      DIFFICULTY: "${DIFFICULTY:-hard}"
+      MODE: "${GAMEMODE:-survival}"
+      MAX_PLAYERS: "${MAX_PLAYERS:-10}"
+      VIEW_DISTANCE: "${VIEW_DISTANCE:-16}"
+      SIMULATION_DISTANCE: "${SIMULATION_DISTANCE:-10}"
+      PVP: "${PVP:-TRUE}"
+      ONLINE_MODE: "${ONLINE_MODE:-TRUE}"
+      ALLOW_FLIGHT: "${ALLOW_FLIGHT:-FALSE}"
+      SPAWN_PROTECTION: "${SPAWN_PROTECTION:-16}"
+      LEVEL: "${LEVEL_NAME:-world}"
+      SEED: "${SEED:-}"
+      OVERRIDE_SERVER_PROPERTIES: "true"
+
+      OPS: "${OPS:-}"
+      WHITELIST: "${WHITELIST:-}"
+      ENFORCE_WHITELIST: "${ENFORCE_WHITELIST:-TRUE}"
+      # SKIP keeps panel and in-game changes from being overwritten on restart
+      EXISTING_WHITELIST_FILE: "SKIP"
+      EXISTING_OPS_FILE: "SKIP"
+      ENABLE_RCON: "true"
+      RCON_PASSWORD: "${RCON_PASSWORD:?not set - run 'make init'}"
+
+    volumes:
+      - ./server/data:/data
+      - ./server/mods.txt:/extras/mods.txt:ro
+      # Per file, so BlueMap can still write the map configs beside them.
+      # accept-download in core.conf is what makes BlueMap render at all.
+      - ./server/bluemap/core.conf:/data/config/bluemap/core.conf:ro
+      - ./server/bluemap/webserver.conf:/data/config/bluemap/webserver.conf:ro
+
+    networks: [default, web]
+
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "minecraft_web"
+      traefik.http.routers.map.rule: "Host(`${MAP_HOST:?not set}`)"
+      traefik.http.routers.map.entrypoints: "websecure"
+      traefik.http.routers.map.tls.certresolver: "letsencrypt"
+      traefik.http.routers.map.middlewares: "map-security@docker"
+      traefik.http.services.map.loadbalancer.server.port: "8100"
+      # No frameDeny: the admin panel embeds the map in an iframe
+      traefik.http.middlewares.map-security.headers.stsSeconds: "31536000"
+      traefik.http.middlewares.map-security.headers.contentTypeNosniff: "true"
+      traefik.http.middlewares.map-security.headers.referrerPolicy: "same-origin"
+
+    healthcheck:
+      test: ["CMD", "mc-health"]
+      start_period: 15m
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+    deploy:
+      resources:
+        limits:
+          memory: ${MEM_LIMIT:-10G}
+
+  # ─── World backups ───
+  backups:
+    image: itzg/mc-backup:stable
+    container_name: minecraft-backups
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      minecraft:
+        condition: service_started
+
+    environment:
+      TZ: "${TZ:-Europe/Kyiv}"
+      UID: "${PUID:-1000}"
+      GID: "${PGID:-1000}"
+
+      BACKUP_INTERVAL: "${BACKUP_INTERVAL:-24h}"
+      PRUNE_BACKUPS_DAYS: "${PRUNE_BACKUPS_DAYS:-3}"
+      INITIAL_DELAY: "5m"
+      BACKUP_NAME: "${LEVEL_NAME:-world}"
+      BACKUP_METHOD: "tar"
+      PAUSE_IF_NO_PLAYERS: "true"
+      # bluemap is excluded: large, and fully regenerable from the world
+      EXCLUDES: "*.jar,cache,logs,*.tmp,libraries,versions,downloads,crash-reports,bluemap"
+
+      RCON_HOST: "minecraft"
+      RCON_PORT: "25575"
+      RCON_PASSWORD: "${RCON_PASSWORD:?not set}"
+
+    volumes:
+      - ./server/data:/data:ro
+      - ./server/backups:/backups
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ─── User database ───
+  postgres:
+    image: postgres:18-alpine
+    container_name: minecraft-postgres
+    restart: unless-stopped
+    logging: *default-logging
+
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-admin}"
+      POSTGRES_USER: "${POSTGRES_USER:-admin}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?not set - run 'make init'}"
+      # Deterministic collation, so ordering does not depend on the host locale
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=en-US"
+      TZ: "${TZ:-Europe/Kyiv}"
+
+    volumes:
+      # Postgres 18 wants the parent directory mounted, not data/ itself — it
+      # puts the cluster in a subdirectory so pg_upgrade --link can work later
+      - postgres:/var/lib/postgresql
+
+    # Never published: only the admin panel talks to it, over the internal network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-admin} -d $${POSTGRES_DB:-admin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ─── Admin panel ───
+  admin:
+    build: ./admin
+    container_name: minecraft-admin
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      minecraft:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+
+    environment:
+      TZ: "${TZ:-Europe/Kyiv}"
+      ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?not set - run 'make init'}"
+      SESSION_SECRET: "${SESSION_SECRET:?not set - run 'make init'}"
+      RCON_HOST: "minecraft"
+      RCON_PORT: "25575"
+      RCON_PASSWORD: "${RCON_PASSWORD:?not set}"
+      MC_CONTAINER: "minecraft"
+      MC_DATA_DIR: "/mcdata"
+      SERVER_HOST: "${SERVER_HOST:-server.sacrificed.me}"
+      MAP_URL: "${MAP_URL:-https://${MAP_HOST:-}}"
+      DATABASE_URL: "postgres://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:?not set}@postgres:5432/${POSTGRES_DB:-admin}"
+
+    volumes:
+      - ./server/data:/mcdata:ro
+      - ./server/backups:/backups:ro
+      - ./server/modpack:/modpack:ro
+      # Optional: CPU and memory readings. The UI hides them when absent.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    # The server creates ./server/data without the world-execute bit, so any
+    # other uid cannot traverse it and whitelist.json reads back empty.
+    user: "${PUID:-1000}:${PGID:-1000}"
+
+    # Without this the docker socket above is unreadable (EACCES).
+    # Find the value with: stat -c '%g' /var/run/docker.sock
+    group_add: ["${DOCKER_GID:-988}"]
+
+    # Loopback by default; production reaches the panel through Traefik
+    ports:
+      - "${ADMIN_BIND:-127.0.0.1}:${ADMIN_PORT:-3000}:3000"
+
+    networks: [default, web]
+
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "minecraft_web"
+      traefik.http.routers.admin.rule: "Host(`${ADMIN_HOST:?not set}`)"
+      traefik.http.routers.admin.entrypoints: "websecure"
+      traefik.http.routers.admin.tls.certresolver: "letsencrypt"
+      traefik.http.routers.admin.middlewares: "admin-security@docker"
+      traefik.http.services.admin.loadbalancer.server.port: "3000"
+      traefik.http.middlewares.admin-security.headers.stsSeconds: "31536000"
+      traefik.http.middlewares.admin-security.headers.stsIncludeSubdomains: "true"
+      traefik.http.middlewares.admin-security.headers.frameDeny: "true"
+      traefik.http.middlewares.admin-security.headers.contentTypeNosniff: "true"
+      traefik.http.middlewares.admin-security.headers.browserXssFilter: "true"
+      traefik.http.middlewares.admin-security.headers.referrerPolicy: "same-origin"
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ─── Reverse proxy and TLS ───
+  proxy:
+    image: traefik:v3.7
+    container_name: minecraft-proxy
+    restart: unless-stopped
+    logging: *default-logging
+    profiles: ["proxy"]
+
+    # Configured entirely through flags — no static config file to keep in sync
+    command:
+      - --global.checknewversion=false
+      - --global.sendanonymoususage=false
+      - --api.dashboard=false
+      - --log.level=INFO
+      - --accesslog=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=minecraft_web
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls.certresolver=letsencrypt
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?not set - needed for Let's Encrypt}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      # Named volume: Let's Encrypt rate limits make losing certificates costly
+      - letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    networks: [web]
+
+volumes:
+  letsencrypt:
+  postgres:
+
+networks:
+  default:
+  web:
+    name: minecraft_web

@@ -1,0 +1,10 @@
+---
+deploy_path: /opt/minecraft-server
+deploy_branch: main
+
+# Start Traefik as well. Set false to run without TLS termination.
+enable_proxy: true
+
+# Written into .env on the host after `make init` generates the secrets.
+# Only non-secret values belong here — passwords stay on the server.
+env_overrides: {}

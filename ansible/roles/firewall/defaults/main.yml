@@ -1,0 +1,4 @@
+---
+# 25565 is the game, 80 and 443 are Traefik. RCON, the panel and the map are
+# bound to loopback in compose.yaml and are never opened here.
+open_ports: [25565, 80, 443]

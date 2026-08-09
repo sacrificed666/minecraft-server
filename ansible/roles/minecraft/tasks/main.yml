@@ -1,0 +1,98 @@
+---
+# Everything here runs as the deploy user, not root: the stack is meant to be
+# operable by that account alone.
+
+- name: 🔍 Check | deploy_repo is set
+  ansible.builtin.assert:
+    that: deploy_repo is defined and deploy_repo | length > 0
+    fail_msg: Set deploy_repo in the inventory — the role has no sensible default for it.
+
+- name: 🚀 Deploy | Check out the repository
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.git:
+    repo: "{{ deploy_repo }}"
+    dest: "{{ deploy_path }}"
+    version: "{{ deploy_branch }}"
+    # Local edits to tracked files are an accident, not a feature — but .env
+    # and everything under server/ is git-ignored and is left alone.
+    force: true
+
+- name: 🔑 Setup | Deploy user owns the tree
+  ansible.builtin.file:
+    path: "{{ deploy_path }}"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    recurse: true
+    state: directory
+
+- name: 🔍 Check | Existing .env
+  ansible.builtin.stat:
+    path: "{{ deploy_path }}/.env"
+  register: env_file
+
+# Secrets are generated on the host and never leave it. Ansible does not see
+# them, the CI pipeline does not see them, and they are not in the repository.
+- name: 🔑 Setup | Generate .env secrets on first deploy
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.command: make init
+  args:
+    chdir: "{{ deploy_path }}"
+  when: not env_file.stat.exists
+  changed_when: true
+
+- name: ⚙️ Config | Apply hostnames and gameplay overrides
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.lineinfile:
+    path: "{{ deploy_path }}/.env"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+  loop: "{{ env_overrides | dict2items }}"
+  when: env_overrides | length > 0
+
+- name: 🔍 Check | EULA accepted
+  ansible.builtin.command: grep -q '^EULA=TRUE' {{ deploy_path }}/.env
+  register: eula
+  changed_when: false
+  failed_when: false
+
+- name: 🛑 Check | Stop if the EULA is not accepted
+  ansible.builtin.fail:
+    msg: >-
+      EULA is not TRUE in {{ deploy_path }}/.env. Accepting Minecraft's EULA is
+      a decision for a person, not a playbook — set it and run again.
+  when: eula.rc != 0
+
+- name: 🚀 Deploy | Start the stack
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.command: docker compose up -d --build
+  args:
+    chdir: "{{ deploy_path }}"
+  register: compose_up
+  changed_when: "'Started' in compose_up.stderr or 'Created' in compose_up.stderr"
+
+- name: 🚀 Deploy | Start Traefik
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.command: docker compose --profile proxy up -d proxy
+  args:
+    chdir: "{{ deploy_path }}"
+  register: proxy_up
+  changed_when: "'Started' in proxy_up.stderr or 'Created' in proxy_up.stderr"
+  when: enable_proxy
+
+- name: 🎁 Build | Player modpack
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.command: make modpack
+  args:
+    chdir: "{{ deploy_path }}"
+  changed_when: true
+  # The mods only exist after the server has downloaded them, which takes a
+  # while on a first boot. Failing here should not fail the deployment.
+  failed_when: false
+
+- name: 📊 Report | Where everything lives
+  ansible.builtin.debug:
+    msg:
+      - "Minecraft: {{ ansible_host }}:25565"
+      - "Panel:     https://{{ env_overrides.ADMIN_HOST | default('see .env') }}"
+      - "Map:       https://{{ env_overrides.MAP_HOST | default('see .env') }}"
+      - "Password:  ssh in and run `make admin-password`"

@@ -1,0 +1,74 @@
+# Modrinth mod list — one slug per line, comments on their own line.
+# Dependencies resolve automatically; removing a line removes the mod.
+# Pin a build with <slug>:<version-id>, mark optional with <slug>?
+# ":beta" is required where a project has no release build for 1.21.1.
+#
+# This whole set was boot-tested together on NeoForge 21.1.248 / MC 1.21.1:
+# clean start, no mod errors, 20.0 TPS idle.
+
+# ─── Core ───
+create
+
+# ─── Create: machines and logistics ───
+createaddition
+create-diesel-generators
+create-new-age
+create-liquid-fuel
+create-tfmg
+create-power-loader
+create-contraption-terminals
+create-tweaked-controllers
+create-compatible-storage
+create-ultimate-factory
+create-factory
+create-pattern-schematics
+create-ore-excavation
+create-enchantment-industry
+slice-and-dice
+
+# ─── Create: transport and combat ───
+create-aeronautics
+create-big-cannons
+create-railways-navigator:beta
+dragonlib:beta
+create-jetpack
+create-radars
+
+# ─── Create: building and decoration ───
+copycats
+create-deco
+create-design-n-decor
+create-framed
+create-encased
+create_oxidized
+create-copper-zinc
+interiors
+bellsandwhistles
+rechiseled-create
+create-misc-and-things
+create-stuff-additions
+
+# ─── Create: world and progression ───
+create-connected
+create-central-kitchen
+create-food
+create-structures-arise
+create-let-the-adventure-begin
+create-dreams-and-desires
+create-dragons-plus
+create-trading-floor
+numismatics
+create-bits-n-bobs
+create-goggles:beta
+
+# ─── Performance ───
+ferrite-core
+lithium
+modernfix
+
+# ─── Server tools ───
+spark
+chunky
+# bluemap: 3D web map. Needs accept-download=true in server/bluemap/core.conf,
+# which is mounted in — without it BlueMap silently renders nothing.
+bluemap

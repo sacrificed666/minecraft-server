@@ -1,0 +1,17 @@
+# Mods that must NOT go into the player modpack.
+#
+# Matched as substrings against jar filenames by `make modpack`.
+# Everything else the server runs is copied into server/modpack/ for players.
+#
+# Two reasons a mod belongs here:
+#   - it is server-side only, so a client would gain nothing (or fail to load it)
+#   - it is an admin tool players have no business running
+
+# Profiler — server-side, admin only
+spark
+
+# World pre-generation — server-side only
+chunky
+
+# Web map renderer — server-side only, players use map.sacrificed.me
+bluemap

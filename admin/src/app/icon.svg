@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Four blocks: the same mark the sign-in screen and sidebar use -->
+  <rect width="32" height="32" rx="7" fill="#0d0f13"/>
+  <rect x="6"  y="6"  width="9" height="9" rx="2" fill="#199e70"/>
+  <rect x="17" y="6"  width="9" height="9" rx="2" fill="#199e70" opacity="0.5"/>
+  <rect x="6"  y="17" width="9" height="9" rx="2" fill="#199e70" opacity="0.5"/>
+  <rect x="17" y="17" width="9" height="9" rx="2" fill="#199e70"/>
+</svg>
