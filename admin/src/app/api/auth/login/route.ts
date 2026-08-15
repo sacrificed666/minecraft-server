@@ -5,9 +5,9 @@ import { authenticate } from "@/lib/users";
 export const runtime = "nodejs";
 
 /**
- * Fixed-window rate limit per source address. In-memory on purpose: the panel
- * is a single instance behind Traefik, and a restart clearing the counters is
- * not a meaningful bypass given the delay it costs an attacker.
+ * Fixed-window rate limit per source address, in memory: the panel is a single
+ * instance, and a restart clearing the counters costs an attacker more time
+ * than it saves them.
  */
 const ATTEMPT_LIMIT = 8;
 const WINDOW_MS = 5 * 60 * 1000;

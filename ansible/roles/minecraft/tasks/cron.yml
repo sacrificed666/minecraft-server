@@ -1,0 +1,55 @@
+---
+# BlueMap competes with the server tick, so the maps stay frozen while people
+# play and catch up in one window overnight. The host clock is {{ timezone }},
+# set by the common role, so these times are local ones.
+
+# /var/log is root-owned, so the jobs cannot create their own log
+- name: 📦 Setup | Cron log
+  ansible.builtin.file:
+    path: "{{ minecraft_cron_log }}"
+    state: touch
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0644"
+    access_time: preserve
+    modification_time: preserve
+
+- name: ⚙️ Config | PATH for the deploy user's cron jobs
+  ansible.builtin.cron:
+    user: "{{ deploy_user }}"
+    name: PATH
+    env: true
+    value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+- name: ⏰ Schedule | Map render window
+  ansible.builtin.cron:
+    user: "{{ deploy_user }}"
+    name: "{{ item.name }}"
+    minute: "{{ item.minute }}"
+    hour: "{{ item.hour }}"
+    job: cd {{ deploy_path }} && make {{ item.target }} >>{{ minecraft_cron_log }} 2>&1
+  loop:
+    - name: bluemap render
+      target: map-render
+      minute: "{{ minecraft_map_render_cron.minute }}"
+      hour: "{{ minecraft_map_render_cron.hour }}"
+    - name: bluemap freeze
+      target: map-pause
+      minute: "{{ minecraft_map_pause_cron.minute }}"
+      hour: "{{ minecraft_map_pause_cron.hour }}"
+  loop_control:
+    label: "{{ item.name }} at {{ item.hour }}:{{ '%02d' | format(item.minute | int) }}"
+
+# cron appends forever; without this the log outlives the disk
+- name: ⚙️ Config | Rotate the cron log
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/minecraft-cron
+    mode: "0644"
+    content: |
+      {{ minecraft_cron_log }} {
+        weekly
+        rotate 4
+        missingok
+        notifempty
+        copytruncate
+      }

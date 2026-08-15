@@ -15,7 +15,7 @@ export function GlassCard({
   return (
     <section
       className={`glass rise ${hover ? "glass-hover" : ""} ${className}`}
-      style={{ animationDelay: `${delay * 70}ms` }}
+      style={{ animationDelay: `${Math.min(delay, 6) * 45}ms` }}
     >
       {children}
     </section>
@@ -37,7 +37,7 @@ export function CardHeader({
   return (
     <header className="flex items-start justify-between gap-4 px-5 pt-4 pb-2">
       <div className="min-w-0">
-        <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-[var(--ink-primary)]">
+        <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-ink">
           {accent && (
             <span
               className="size-2.5 shrink-0 rounded-[3px]"
@@ -48,7 +48,7 @@ export function CardHeader({
           <span className="truncate">{title}</span>
         </h2>
         {hint && (
-          <p className="mt-0.5 text-xs text-[var(--ink-muted)]">{hint}</p>
+          <p className="mt-0.5 text-xs text-ink-muted">{hint}</p>
         )}
       </div>
       {right}

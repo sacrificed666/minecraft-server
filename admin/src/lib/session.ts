@@ -4,12 +4,10 @@ import type { Role } from "./users";
 
 /**
  * Stateless session cookie: base64url(payload).base64url(HMAC-SHA256).
- * The payload carries the username and role, so no lookup is needed per
- * request — and no session store can drift out of sync with the database.
  *
- * The trade-off is that a role change only takes effect on the next sign-in.
- * With one admin and a handful of players that is the right side of the deal;
- * revoking a compromised session means rotating SESSION_SECRET.
+ * The role travels in the payload, so no store can drift out of sync with the
+ * database — at the cost of a role change only applying on the next sign-in,
+ * and revocation meaning a SESSION_SECRET rotation.
  */
 
 const COOKIE_NAME = SESSION_COOKIE;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/guard";
 import { getWhitelist, isValidName, whitelistAdd, whitelistRemove } from "@/lib/mc";
+import { ensureAccounts } from "@/lib/users";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,6 +41,8 @@ export async function POST(request: Request) {
 
   try {
     const message = await whitelistAdd(name);
+    // Whitelisting is the decision to let someone in; the account follows it.
+    await ensureAccounts([name]).catch(() => []);
     return NextResponse.json({ ok: true, message, players: await getWhitelist() });
   } catch (err) {
     return NextResponse.json(

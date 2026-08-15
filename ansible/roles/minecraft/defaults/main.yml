@@ -1,10 +1,17 @@
 ---
-deploy_path: /opt/minecraft-server
-deploy_branch: main
+# The deployment itself. What is deployed and where: group_vars/all/main.yml.
 
 # Start Traefik as well. Set false to run without TLS termination.
-enable_proxy: true
+minecraft_enable_proxy: true
 
-# Written into .env on the host after `make init` generates the secrets.
+# Written into .env on the host after `make init` has generated the secrets.
 # Only non-secret values belong here — passwords stay on the server.
-env_overrides: {}
+minecraft_env_overrides: {}
+
+# The nightly BlueMap window, in the host timezone. Rendering starts at 04:00
+# and the maps freeze again at 08:00 — long enough for a full catch-up, done
+# before anyone is likely to be online.
+minecraft_map_render_cron: { hour: 4, minute: 0 }
+minecraft_map_pause_cron: { hour: 8, minute: 0 }
+
+minecraft_cron_log: /var/log/minecraft-cron.log

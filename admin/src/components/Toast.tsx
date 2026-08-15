@@ -55,7 +55,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             >
               {ICON[t.kind]}
             </span>
-            <span className="min-w-0 break-words">{t.text}</span>
+            <span className="min-w-0 wrap-break-word">{t.text}</span>
           </div>
         ))}
       </div>

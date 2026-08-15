@@ -3,8 +3,8 @@ SHELL := /bin/bash
 COMPOSE := docker compose
 SERVICE := minecraft
 
-# User arguments: make cmd C="say hi" | make pregen R=5000 | make restore F=...
-R ?= 3000
+# User arguments: make cmd C="say hi" | make pregen R=3000 | make restore F=...
+R ?= 10000
 
 # Colour by meaning, not decoration. Long names on purpose — short ones would
 # collide with the user arguments above.
@@ -20,9 +20,12 @@ RED  := \033[31m
 MAG  := \033[35m
 RST  := \033[0m
 
-.PHONY: help check init up down restart logs status stats players tps \
-        disk console rcon cmd pregen seed save backup backups restore \
-        pull update mods clean-mods config admin admin-logs admin-password map modpack proxy urls provision provision-check release
+.PHONY: help check init up down restart logs status health stats players tps \
+        disk console rcon cmd pregen seed save backup backups restore offline-ids \
+        pull update rebuild mods clean-mods config admin admin-logs admin-password map \
+        modpack client-mods proxy urls map-render map-pause \
+        provision provision-lint provision-check release \
+        vault-check vault-edit vault-rekey
 
 ##@ General
 
@@ -74,6 +77,18 @@ logs: ## 📜 Follow the server log
 status: ## 🩺 Container state and health
 	@$(COMPOSE) ps --format 'table {{.Service}}\t{{.Status}}\t{{.Ports}}'
 
+health: ## ❤️  Wait until the admin panel reports healthy
+	@for i in $$(seq 1 30); do \
+	   state=$$(docker inspect minecraft-admin --format '{{.State.Health.Status}}' 2>/dev/null || echo missing); \
+	   if [ "$$state" = healthy ]; then \
+	     printf "$(GRN)✓ panel healthy$(RST) $(DIM)after %ss$(RST)\n" "$$((i * 5 - 5))"; exit 0; \
+	   fi; \
+	   printf "$(DIM)  %2s/30  %s$(RST)\n" "$$i" "$$state"; \
+	   sleep 5; \
+	 done; \
+	 printf "$(RED)✗ panel did not become healthy in 150s$(RST)\n"; \
+	 $(COMPOSE) ps; $(COMPOSE) logs --tail=50 admin; exit 1
+
 urls: ## 🔗 Show the configured addresses
 	@printf "  $(BOLD)Minecraft$(RST)  $(CYAN)%s$(RST):%s\n" "$$(grep '^SERVER_HOST=' .env | cut -d= -f2)" "$$(grep '^SERVER_PORT=' .env | cut -d= -f2)"
 	@printf "  $(BOLD)Admin$(RST)      $(CYAN)https://%s$(RST)\n" "$$(grep '^ADMIN_HOST=' .env | cut -d= -f2)"
@@ -84,6 +99,19 @@ stats: ## 📊 Live CPU and memory usage
 
 players: ## 👥 List online players
 	@$(COMPOSE) exec -T $(SERVICE) rcon-cli list
+
+# With ONLINE_MODE=FALSE a client presents a UUID derived from its name, but
+# `whitelist add` still resolves the name through Mojang while the server has
+# internet — so the file records an id the player will never present, and the
+# whitelist check, which keys on UUID, rejects them.
+offline-ids: ## 🪪 Rewrite whitelist/ops UUIDs for ONLINE_MODE=FALSE
+	@if ! grep -q '^ONLINE_MODE=FALSE' .env; then \
+	   printf "$(YEL)⚠  ONLINE_MODE is not FALSE — nothing to do$(RST)\n"; \
+	 else \
+	   python3 scripts/offline-ids.py server/data/whitelist.json server/data/ops.json; \
+	   $(COMPOSE) exec -T $(SERVICE) rcon-cli whitelist reload >/dev/null 2>&1 || true; \
+	   printf "$(GRN)✓ ids rewritten$(RST) — run after adding players while offline mode is on\n"; \
+	 fi
 
 tps: ## ⚡ Server tick rate, per dimension
 	@$(COMPOSE) exec -T $(SERVICE) rcon-cli neoforge tps
@@ -107,7 +135,7 @@ cmd: ## 💬 Run one command — make cmd C="say hello"
 
 ##@ World
 
-pregen: ## 🗺️  Pre-generate the world — make pregen R=3000
+pregen: ## 🗺️  Pre-generate the world — radius in BLOCKS, e.g. R=3000
 	@$(COMPOSE) exec -T $(SERVICE) rcon-cli chunky radius $(R)
 	@$(COMPOSE) exec -T $(SERVICE) rcon-cli chunky start
 	@printf "$(GRN)✓ pre-generating radius $(R)$(RST) — check with $(CYAN)make cmd C=\"chunky progress\"$(RST)\n"
@@ -151,6 +179,10 @@ update: pull ## ⬆️  Pull images and recreate the server
 	@$(COMPOSE) up -d
 	@printf "$(GRN)✓ updated$(RST) — mods re-resolved from server/mods.txt\n"
 
+rebuild: check ## 🏗️  Rebuild local images and recreate every service
+	@$(COMPOSE) up -d --build
+	@printf "$(GRN)✓ stack rebuilt$(RST) — the server restarted\n"
+
 mods: ## 🧩 List installed mod jars
 	@ls -1 server/data/mods/ 2>/dev/null || printf "$(DIM)not installed yet — run make up$(RST)\n"
 
@@ -164,14 +196,36 @@ config: ## 🔍 Validate and print the resolved compose config
 
 ##@ Provisioning
 
-provision: ## 🏗️  Prepare the server with Ansible
-	@cd ansible && ansible-playbook -i inventory.yml site.yml
+# group_vars/all/vault.yml holds the host password. Anything that connects needs
+# it open; say so once, clearly, rather than failing mid-run on a decrypt error.
+VAULT     := ansible/.vault-pass
+VAULT_ARG := --vault-password-file .vault-pass
+vault-check:
+	@if [ ! -f $(VAULT) ]; then \
+	   printf "$(RED)✗ $(VAULT) is missing$(RST) — it is never committed.\n"; \
+	   printf "$(DIM)  Restore it from your password manager, then run this again.$(RST)\n"; \
+	   exit 1; \
+	 fi
 
-provision-check: ## 🔍 Dry-run the playbook without changing anything
-	@cd ansible && ansible-playbook -i inventory.yml site.yml --check --diff
+provision: vault-check ## 🏗️  Prepare the server with Ansible
+	@cd ansible && ansible-playbook -i inventory.yml site.yml $(VAULT_ARG)
 
-release: ## 🚀 Pull and restart on the server (what the pipeline runs)
-	@cd ansible && ansible-playbook -i inventory.yml site.yml --tags deploy
+provision-lint: ## 🔍 Syntax-check the playbook — needs no host and no vault
+	@cd ansible && ansible-playbook -i inventory.yml site.yml --syntax-check
+	@printf "$(GRN)✓ playbook parses$(RST)\n"
+
+provision-check: vault-check ## 🩺 Dry-run the playbook against the host, with a diff
+	@cd ansible && ansible-playbook -i inventory.yml site.yml --check --diff $(VAULT_ARG)
+
+release: vault-check ## 🚀 Pull and restart on the server (what the pipeline runs)
+	@cd ansible && ansible-playbook -i inventory.yml site.yml --tags deploy $(VAULT_ARG)
+
+vault-edit: vault-check ## 🔐 Edit the encrypted host secrets
+	@cd ansible && ansible-vault edit group_vars/all/vault.yml $(VAULT_ARG)
+
+vault-rekey: vault-check ## 🔑 Change the password the vault is locked with
+	@cd ansible && ansible-vault rekey group_vars/all/vault.yml $(VAULT_ARG)
+	@printf "$(YEL)⚠  Put the new password in $(VAULT) — the old one no longer opens it$(RST)\n"
 
 ##@ Admin panel
 
@@ -199,16 +253,50 @@ modpack: ## 🎁 Build the player modpack from the installed mods
 	   else skipped=$$((skipped+1)); printf "$(DIM)  skip %s$(RST)\n" "$$name"; fi; \
 	 done; \
 	 printf "$(DIM)  %s client mods, %s server-only skipped$(RST)\n" "$$copied" "$$skipped"
+	@$(MAKE) --no-print-directory client-mods
 	@cp server/mods.txt server/modpack/mods.txt
+	@cp server/client-mods.txt server/modpack/client-mods.txt
 	@printf 'Minecraft %s + NeoForge %s\n\nInstall the NeoForge client, then copy the contents\nof the mods folder into .minecraft/mods\n' \
 	  "$$(grep '^MC_VERSION=' .env | cut -d= -f2)" \
 	  "$$(grep '^NEOFORGE_VERSION=' .env | cut -d= -f2)" > server/modpack/README.txt
-	@cd server/modpack && zip -qr modpack.zip mods mods.txt README.txt
+	@cd server/modpack && zip -qr modpack.zip mods mods.txt client-mods.txt README.txt
 	@printf "$(GRN)✓ modpack built$(RST) → $(CYAN)server/modpack/modpack.zip$(RST) ($$(du -h server/modpack/modpack.zip | cut -f1))\n"
 	@printf "  Players download it from the panel's $(CYAN)Mods$(RST) page\n"
 
+client-mods: ## 🧲 Fetch the client-only mods into the pack (part of make modpack)
+	@command -v jq >/dev/null || { printf "$(RED)✗ jq is required$(RST) — apt install jq\n"; exit 1; }
+	@mkdir -p server/modpack/mods
+	@mc=$$(grep '^MC_VERSION=' .env | cut -d= -f2); n=0; \
+	 for entry in $$(grep -vE '^\s*(#|$$)' server/client-mods.txt); do \
+	   slug=$${entry%%:*}; want=release; [ "$$entry" != "$$slug" ] && want=any; \
+	   json=$$(curl -fsS "https://api.modrinth.com/v2/project/$$slug/version?loaders=%5B%22neoforge%22%5D&game_versions=%5B%22$$mc%22%5D") \
+	     || { printf "$(RED)✗ %s: Modrinth is unreachable$(RST)\n" "$$slug"; exit 1; }; \
+	   line=$$(printf '%s' "$$json" | jq -r --arg want "$$want" \
+	     '[.[] | select($$want == "any" or .version_type == $$want)] | first | .files[] | select(.primary) | .url + " " + .filename'); \
+	   [ -n "$$line" ] && [ "$$line" != "null" ] \
+	     || { printf "$(RED)✗ %s: no neoforge build for MC %s$(RST)\n" "$$slug" "$$mc"; exit 1; }; \
+	   set -- $$line; \
+	   curl -fsS -o "server/modpack/mods/$$2" "$$1" \
+	     || { printf "$(RED)✗ %s: download failed$(RST)\n" "$$slug"; exit 1; }; \
+	   printf "$(DIM)  + %s$(RST)\n" "$$2"; n=$$((n+1)); \
+	 done; \
+	 printf "$(DIM)  %s client-only mods fetched from Modrinth$(RST)\n" "$$n"
+
 map: ## 🗺️  BlueMap render status
 	@$(COMPOSE) exec -T $(SERVICE) rcon-cli bluemap
+
+# Rendering competes with the server tick, so the maps sit frozen while people
+# play and catch up in one window at night. Both targets are driven by cron.
+MAPS := world world_the_nether world_the_end
+
+map-render: ## 🌙 Unfreeze the maps and render (the nightly job)
+	@for m in $(MAPS); do $(COMPOSE) exec -T $(SERVICE) rcon-cli bluemap unfreeze $$m >/dev/null; done
+	@$(COMPOSE) exec -T $(SERVICE) rcon-cli bluemap update >/dev/null
+	@printf "$(GRN)✓ rendering$(RST) — follow with $(CYAN)make map$(RST)\n"
+
+map-pause: ## ⏸️  Freeze the maps until the next render window
+	@for m in $(MAPS); do $(COMPOSE) exec -T $(SERVICE) rcon-cli bluemap freeze $$m >/dev/null; done
+	@printf "$(GRN)✓ maps frozen$(RST) — they resume at the next $(CYAN)make map-render$(RST)\n"
 
 proxy: check ## 🌐 Start Traefik (TLS termination; needs ports 80/443 free)
 	@$(COMPOSE) --profile proxy up -d proxy

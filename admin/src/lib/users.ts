@@ -18,8 +18,8 @@ export type User = {
 };
 
 /**
- * scrypt with a per-user salt, stored as `scrypt$<salt>$<hash>`.
- * Node ships it, so there is no native dependency to build in the image.
+ * scrypt with a per-user salt, stored as `scrypt$<salt>$<hash>`. Node ships
+ * it, so the image has no native dependency to build.
  */
 const KEYLEN = 64;
 
@@ -87,9 +87,22 @@ export async function createUser(
   };
 }
 
-export async function resetPassword(id: number): Promise<string | null> {
+/** Minimum for a hand-typed password; generated ones are 14. */
+export const MIN_PASSWORD = 8;
+
+/**
+ * Sets a password, generating one when the caller does not supply it.
+ *
+ * The stored value is a scrypt hash either way — there is no way to read an
+ * existing password back, so "show me their password" is answered by setting
+ * one you choose.
+ */
+export async function resetPassword(
+  id: number,
+  chosen?: string,
+): Promise<string | null> {
   await migrate();
-  const password = generatePassword();
+  const password = chosen && chosen.length >= MIN_PASSWORD ? chosen : generatePassword();
   const { rowCount } = await pool().query(
     `UPDATE users SET password = $1 WHERE id = $2`,
     [await hash(password), id],
@@ -104,6 +117,51 @@ export async function deleteUser(id: number): Promise<string | null> {
     [id],
   );
   return rows[0]?.username ?? null;
+}
+
+/**
+ * Makes sure everyone already trusted by the server has a panel account.
+ *
+ * Being on the whitelist or in ops.json is the decision to let someone in; the
+ * account is bookkeeping that should follow it rather than be a second step an
+ * admin has to remember. Passwords are generated and never shown — the admin
+ * sets one when handing the account over.
+ */
+export async function ensureAccounts(
+  names: string[],
+  role: Role = "player",
+): Promise<string[]> {
+  await migrate();
+  const wanted = names.filter((n) => USERNAME_RE.test(n));
+  if (!wanted.length) return [];
+  const lowered = wanted.map((n) => n.toLowerCase());
+
+  const { rows } = await pool().query(
+    `SELECT lower(username) AS name FROM users WHERE lower(username) = ANY($1)`,
+    [lowered],
+  );
+  const have = new Set(rows.map((r) => r.name));
+  const missing = wanted.filter((n) => !have.has(n.toLowerCase()));
+
+  for (const name of missing) {
+    await pool().query(
+      `INSERT INTO users (username, password, role)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (username) DO NOTHING`,
+      [name, await hash(generatePassword()), role],
+    );
+  }
+
+  // A server operator already has full control of the world, so the panel
+  // follows that rather than making it a second, separate grant. Only ever an
+  // upgrade: losing op does not quietly take the panel account away.
+  if (role === "admin") {
+    await pool().query(
+      `UPDATE users SET role = 'admin' WHERE lower(username) = ANY($1) AND role <> 'admin'`,
+      [lowered],
+    );
+  }
+  return missing;
 }
 
 export async function authenticate(

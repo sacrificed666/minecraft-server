@@ -1,9 +1,7 @@
 /**
- * Deterministic blocky avatar, generated from the player's UUID.
- *
- * Chosen over a skin-rendering service (minotar/crafatar) on purpose: those
- * would send every whitelisted username to a third party and would break the
- * panel whenever the host has no outbound internet.
+ * Deterministic blocky avatar derived from the player's UUID. A skin-rendering
+ * service would send every whitelisted username to a third party and break
+ * whenever the host has no outbound internet.
  */
 
 const HUES = [
@@ -40,7 +38,7 @@ export function PlayerAvatar({
       height={size}
       viewBox="0 0 4 4"
       className="shrink-0 rounded-md"
-      style={{ background: "var(--glass-fill-2)" }}
+      style={{ background: "var(--glass-inset)" }}
       aria-hidden="true"
     >
       {cells.map((on, i) => {

@@ -2,20 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GlassCard, CardHeader } from "@/components/GlassCard";
+import { PasswordField } from "@/components/PasswordField";
 import { PlayerAvatar } from "@/components/PlayerAvatar";
 import { useToast } from "@/components/Toast";
-import { useSession } from "@/components/SessionProvider";
-import { useMetrics } from "@/components/MetricsProvider";
-import { relativeTime } from "@/components/format";
-
-type Account = {
-  id: number;
-  username: string;
-  role: "admin" | "player";
-  createdAt: string;
-  lastLogin: string | null;
-};
-type Entry = { uuid: string; name: string };
+import { useSession } from "@/components/providers/SessionProvider";
+import { useMetrics } from "@/components/providers/MetricsProvider";
+import { relativeTime } from "@/lib/format";
+import type { PlayerEntry } from "@/lib/mc";
+import type { User } from "@/lib/users";
 
 /**
  * One person, assembled from three sources that used to have their own pages:
@@ -24,7 +18,7 @@ type Entry = { uuid: string; name: string };
  */
 type Person = {
   name: string;
-  account: Account | null;
+  account: User | null;
   whitelisted: boolean;
   op: boolean;
   online: boolean;
@@ -35,17 +29,21 @@ const key = (name: string) => name.toLowerCase();
 export default function PlayersPage() {
   const me = useSession();
   const toast = useToast();
-  const { snap } = useMetrics();
+  const { data: snap } = useMetrics();
 
-  const [accounts, setAccounts] = useState<Account[] | null>(null);
-  const [whitelist, setWhitelist] = useState<Entry[] | null>(null);
-  const [ops, setOps] = useState<Entry[]>([]);
+  const [accounts, setAccounts] = useState<User[] | null>(null);
+  const [whitelist, setWhitelist] = useState<PlayerEntry[] | null>(null);
+  const [ops, setOps] = useState<PlayerEntry[]>([]);
   const [dbError, setDbError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  // Generated passwords are shown once and stored only as a hash
-  const [reveal, setReveal] = useState<{ username: string; password: string } | null>(null);
+  // An existing password cannot be read back, so "see their password" is served
+  // by letting the admin set one they choose.
+  const [editing, setEditing] = useState<{ id: number; name: string } | null>(null);
+  const [chosen, setChosen] = useState("");
 
+  // Hand-rolled rather than usePolled: every mutation below has to re-read all
+  // three sources, and a partial failure must not blank the ones that worked.
   const refresh = useCallback(async () => {
     const [u, w, s] = await Promise.allSettled([
       fetch("/api/users", { cache: "no-store" }).then(async (r) => ({
@@ -108,7 +106,7 @@ export default function PlayersPage() {
     return (
       <GlassCard>
         <CardHeader title="Players" />
-        <p className="px-5 pb-5 text-sm text-[var(--ink-muted)]">
+        <p className="px-5 pb-5 text-sm text-ink-muted">
           Only administrators can manage players.
         </p>
       </GlassCard>
@@ -131,7 +129,8 @@ export default function PlayersPage() {
           toast("error", data.error ?? "Could not create the account");
           return;
         }
-        setReveal({ username, password: data.password });
+        setEditing({ id: data.user.id, name: username });
+        setChosen(data.password);
         toast(
           data.whitelisted ? "ok" : "error",
           data.whitelisted
@@ -158,20 +157,18 @@ export default function PlayersPage() {
     }
   }
 
-  async function resetPassword(person: Person) {
-    if (!person.account) return;
+  async function setPassword(id: number, name: string, password: string) {
     const res = await fetch("/api/users", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: person.account.id }),
+      body: JSON.stringify({ id, password }),
     });
     const data = await res.json();
     if (!res.ok) {
-      toast("error", data.error ?? "Could not reset the password");
+      toast("error", data.error ?? "Could not set the password");
       return;
     }
-    setReveal({ username: person.name, password: data.password });
-    toast("ok", `New password for ${person.name}`);
+    toast("ok", `Password saved for ${name}`);
   }
 
   async function grantAccount(person: Person) {
@@ -185,7 +182,8 @@ export default function PlayersPage() {
       toast("error", data.error ?? "Could not create the account");
       return;
     }
-    setReveal({ username: person.name, password: data.password });
+    setEditing({ id: data.user.id, name: person.name });
+    setChosen(data.password);
     toast("ok", `${person.name} can now sign in`);
     await refresh();
   }
@@ -215,35 +213,41 @@ export default function PlayersPage() {
 
   return (
     <div className="space-y-4">
-      {reveal && (
+      {editing && (
         <GlassCard delay={0}>
           <CardHeader
-            title={`Password for ${reveal.username}`}
-            hint="Shown once — copy it now, only a hash is stored"
+            title={`Password for ${editing.name}`}
+            hint="Type one, or roll a random one. The existing password is a scrypt hash and cannot be shown — only replaced."
             accent="var(--warning)"
             right={
               <button
-                onClick={() => setReveal(null)}
-                className="rounded-lg px-2 py-1 text-xs text-[var(--ink-muted)] hover:text-[var(--ink-primary)]"
+                onClick={() => {
+                  setEditing(null);
+                  setChosen("");
+                }}
+                className="rounded-lg px-2 py-1 text-xs text-ink-muted hover:text-ink"
               >
-                Dismiss
+                Close
               </button>
             }
           />
-          <div className="flex flex-wrap items-center gap-3 px-5 pb-5">
-            <code className="rounded-xl bg-[var(--glass-fill-2)] px-4 py-2.5 font-mono text-lg tracking-wider select-all">
-              {reveal.password}
-            </code>
+          <form
+            className="flex flex-col gap-2 px-5 pb-5 sm:flex-row sm:items-center"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void setPassword(editing.id, editing.name, chosen.trim());
+            }}
+          >
+            <PasswordField value={chosen} onChange={setChosen} autoFocus />
             <button
-              onClick={() => {
-                void navigator.clipboard.writeText(reveal.password);
-                toast("ok", "Copied");
-              }}
-              className="rounded-xl border border-[var(--glass-border)] px-3 py-2 text-sm transition-transform hover:scale-105 active:scale-95"
+              type="submit"
+              disabled={chosen.trim().length < 8}
+              title={chosen.trim().length < 8 ? "At least 8 characters" : "Save"}
+              className="rounded-xl border border-(--glass-border) bg-(--glass-fill) px-4 py-2 text-sm font-medium transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-40"
             >
-              Copy
+              Save
             </button>
-          </div>
+          </form>
         </GlassCard>
       )}
 
@@ -266,12 +270,12 @@ export default function PlayersPage() {
             placeholder="Minecraft username"
             aria-label="Minecraft username"
             maxLength={16}
-            className="min-w-0 flex-1 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-fill-2)] px-3 py-2 text-sm placeholder:text-[var(--ink-muted)]"
+            className="w-full min-w-0 rounded-xl border border-(--glass-border) bg-(--glass-inset) px-3 py-2 text-sm placeholder:text-ink-muted sm:w-auto sm:flex-1"
           />
           <button
             type="submit"
             disabled={busy || !name.trim()}
-            className="rounded-xl border border-[var(--glass-border)] bg-[var(--glass-fill)] px-4 py-2 text-sm font-medium transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-40"
+            className="flex-1 rounded-xl border border-(--glass-border) bg-(--glass-fill) px-4 py-2 text-sm font-medium transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-40 sm:flex-none"
           >
             {busy ? "…" : "Create account"}
           </button>
@@ -279,7 +283,7 @@ export default function PlayersPage() {
             type="button"
             onClick={() => void addPlayer(false)}
             disabled={busy || !name.trim()}
-            className="rounded-xl border border-[var(--glass-border)] px-4 py-2 text-sm text-[var(--ink-secondary)] transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-40"
+            className="flex-1 rounded-xl border border-(--glass-border) px-4 py-2 text-sm text-ink-secondary transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-40 sm:flex-none"
           >
             Whitelist only
           </button>
@@ -291,7 +295,7 @@ export default function PlayersPage() {
           title="People"
           hint="Whitelist, panel accounts and who is connected, in one list"
           right={
-            <span className="rounded-full border border-[var(--glass-border)] px-2.5 py-0.5 text-xs tabular-nums text-[var(--ink-secondary)]">
+            <span className="rounded-full border border-(--glass-border) px-2.5 py-0.5 text-xs tabular-nums text-ink-secondary">
               {people.length}
             </span>
           }
@@ -310,7 +314,7 @@ export default function PlayersPage() {
             ))}
 
           {whitelist !== null && people.length === 0 && (
-            <p className="px-2 py-4 text-sm text-[var(--ink-muted)]">
+            <p className="px-2 py-4 text-sm text-ink-muted">
               Nobody yet. Add the first player above.
             </p>
           )}
@@ -319,7 +323,7 @@ export default function PlayersPage() {
             {people.map((p) => (
               <li
                 key={key(p.name)}
-                className="group flex flex-wrap items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-[var(--glass-fill-2)]"
+                className="group flex flex-wrap items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-(--glass-inset)"
               >
                 <span className="flex min-w-0 items-center gap-2.5">
                   <PlayerAvatar seed={p.name} />
@@ -334,9 +338,10 @@ export default function PlayersPage() {
                         />
                       )}
                     </span>
-                    <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--ink-muted)]">
+                    <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-ink-muted">
                       <Badge on={p.whitelisted} label="whitelisted" />
                       <Badge on={!!p.account} label="account" />
+                      <Badge on={p.account?.role === "admin"} label="panel admin" />
                       <Badge on={p.op} label="operator" />
                       {p.account?.lastLogin && (
                         <span>· signed in {relativeTime(Date.parse(p.account.lastLogin))}</span>
@@ -345,25 +350,30 @@ export default function PlayersPage() {
                   </span>
                 </span>
 
-                <span className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                {/* Revealed on hover for pointers, always shown for touch —
+                    a finger never produces :hover, so these were unreachable. */}
+                <span className="flex gap-1 opacity-100 transition-opacity focus-within:opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
                   {p.account ? (
                     <button
-                      onClick={() => void resetPassword(p)}
-                      className="rounded-lg px-2 py-1 text-xs text-[var(--ink-muted)] hover:text-[var(--ink-primary)]"
+                      onClick={() => {
+                        setEditing({ id: p.account!.id, name: p.name });
+                        setChosen("");
+                      }}
+                      className="rounded-lg px-2 py-1 text-xs text-ink-muted hover:text-ink"
                     >
-                      Reset password
+                      Password
                     </button>
                   ) : (
                     <button
                       onClick={() => void grantAccount(p)}
-                      className="rounded-lg px-2 py-1 text-xs text-[var(--ink-muted)] hover:text-[var(--ink-primary)]"
+                      className="rounded-lg px-2 py-1 text-xs text-ink-muted hover:text-ink"
                     >
                       Give account
                     </button>
                   )}
                   <button
                     onClick={() => void removePerson(p)}
-                    className="rounded-lg px-2 py-1 text-xs text-[var(--ink-muted)] hover:text-[var(--critical)]"
+                    className="rounded-lg px-2 py-1 text-xs text-ink-muted hover:text-critical"
                   >
                     Remove
                   </button>
@@ -373,10 +383,12 @@ export default function PlayersPage() {
           </ul>
         </div>
 
-        <p className="px-5 pb-4 text-xs text-[var(--ink-muted)]">
+        <p className="px-5 pb-4 text-xs text-ink-muted">
           Operators are granted from the shell —{" "}
           <code className="font-mono">make cmd C=&quot;op Nick&quot;</code> — so handing
-          out server-wide power never happens by a stray click here.
+          out server-wide power never happens by a stray click here. Whoever is an
+          operator gets a panel admin account to match; everyone whitelisted gets a
+          player one.
         </p>
       </GlassCard>
     </div>

@@ -7,6 +7,65 @@ type Props = { className?: string };
 
 const base = "size-[18px] shrink-0";
 
+const stroke = {
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.8,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
+export function IconEye({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`size-4 shrink-0 ${className}`} {...stroke} aria-hidden="true">
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+export function IconEyeOff({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`size-4 shrink-0 ${className}`} {...stroke} aria-hidden="true">
+      <path d="M9.9 5.7A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.7 3.5M6.2 6.7A17 17 0 0 0 2.5 12S6 18.5 12 18.5c1.4 0 2.6-.3 3.7-.8" />
+      <path d="m3 3 18 18" />
+    </svg>
+  );
+}
+
+export function IconCopy({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`size-4 shrink-0 ${className}`} {...stroke} aria-hidden="true">
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+export function IconDice({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`size-4 shrink-0 ${className}`} {...stroke} aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <circle cx="8.5" cy="8.5" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="15.5" cy="15.5" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function IconLooks({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`size-5 shrink-0 ${className}`} fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true">
+      <path d="M12 3a9 9 0 1 0 0 18c.8 0 1.5-.7 1.5-1.5 0-.4-.2-.8-.4-1-.3-.3-.4-.6-.4-1 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.4-4-8-9-8Z" />
+      <circle cx="7.5" cy="11" r="1.2" />
+      <circle cx="12" cy="7.5" r="1.2" />
+      <circle cx="16.5" cy="11" r="1.2" />
+    </svg>
+  );
+}
+
 export function IconOverview({ className = "" }: Props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"

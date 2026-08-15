@@ -2,11 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/constants";
 
 /**
- * Gate every route except the login page and the login endpoint.
+ * Gates every route except the login page and endpoint.
  *
- * The cookie signature is verified again inside each API handler — middleware
- * runs on the edge runtime where node:crypto is unavailable, so this layer only
- * checks that a cookie is present and redirects when it is not.
+ * Only checks that a cookie is present: middleware runs on the edge runtime,
+ * where node:crypto is unavailable. lib/guard.ts is the real check.
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

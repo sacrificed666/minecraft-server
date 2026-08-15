@@ -1,30 +1,23 @@
-# The one host this stack runs on.
-#
-# Nothing here is secret: the hostnames are public DNS records, the repository
-# is public, and every password is generated on the server itself by
-# `make init`. That is why this file is committed rather than templated.
-#
-# Only what differs from the role defaults belongs here — see
-# roles/*/defaults/main.yml for everything else that can be overridden.
+---
+# The one host this stack runs on, and what is specific to it.
+# Committed on purpose: the hostnames are public DNS, the repository is public,
+# and every password is generated on the server itself by `make init`.
+
 all:
   hosts:
     minecraft:
       ansible_host: server.sacrificed.me
-      # The account that already exists on a fresh OVH image. The playbook
-      # creates the unprivileged `mc` user it deploys as.
+      # The account a fresh OVH image ships with; the playbook creates deploy_user
       ansible_user: ubuntu
       ansible_port: 22
 
   vars:
-    deploy_repo: https://github.com/sacrificed666/minecraft-server.git
-
     # Written into .env on the server after the secrets are generated there.
-    # Never put passwords here.
-    env_overrides:
+    # Non-secret values only — passwords never leave the host.
+    minecraft_env_overrides:
       SERVER_HOST: server.sacrificed.me
       ADMIN_HOST: admin.sacrificed.me
       MAP_HOST: map.sacrificed.me
       ACME_EMAIL: admin@sacrificed.me
       OPS: sacrificed666
-      # Accepting https://www.minecraft.net/eula — set deliberately, once.
       EULA: "TRUE"

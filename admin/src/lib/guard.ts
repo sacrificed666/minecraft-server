@@ -4,8 +4,8 @@ import { readSession, type Session } from "./session";
 import { SESSION_COOKIE } from "./constants";
 
 /**
- * Real authorisation for route handlers. Middleware only sees whether a cookie
- * exists; these verify the signature, expiry and role.
+ * Real authorisation for route handlers. Middleware only sees that a cookie
+ * exists; these verify its signature, expiry and role.
  */
 export async function getSession(): Promise<Session | null> {
   const store = await cookies();

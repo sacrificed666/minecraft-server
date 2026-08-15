@@ -1,23 +1,26 @@
 ---
-timezone: Europe/Kyiv
-
-# The unprivileged account that owns the deployment and runs Docker
-deploy_user: mc
-
-# A 12 GB host running an 8 GB heap has little room to spare. Swap is not a
-# substitute for RAM, but it stops a transient spike from killing the JVM.
-# Set to 0 to skip it.
-swap_gb: 4
+# Base packages, the deploy user's environment and the limits the JVM needs.
+# timezone and deploy_user are shared — see group_vars/all/main.yml.
 
 common_packages:
   - ca-certificates
+  - cron # the nightly BlueMap window
   - curl
   - git
+  - jq # `make modpack` resolves the client-only mods through the Modrinth API
   - make
   - zip
   - ufw
   - unattended-upgrades
   - rsync
 
+# Not a substitute for RAM, but it stops a spike from killing the JVM on a
+# 12 GB host running an 8 GB heap. Set to 0 to skip it.
+common_swap_gb: 4
+
 # Minecraft opens a lot of region files and the JVM maps many at once
-nofile_limit: 65535
+common_nofile_limit: 65535
+
+# Declared rather than read back from the created account, so --check works on a
+# host where that account does not exist yet
+common_deploy_home: /home/{{ deploy_user }}

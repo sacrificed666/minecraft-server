@@ -19,6 +19,9 @@ services:
 
     ports:
       - "${SERVER_PORT:-25565}:25565/tcp"
+      # Simple Voice Chat. UDP and public, like the game port — the mod loads
+      # but nobody can hear anyone without it.
+      - "${VOICE_PORT:-24454}:24454/udp"
       - "${RCON_BIND:-127.0.0.1}:${RCON_PORT:-25575}:25575/tcp"
       - "${MAP_BIND:-127.0.0.1}:${MAP_PORT:-8100}:8100/tcp"
 
@@ -74,6 +77,9 @@ services:
       # accept-download in core.conf is what makes BlueMap render at all.
       - ./server/bluemap/core.conf:/data/config/bluemap/core.conf:ro
       - ./server/bluemap/webserver.conf:/data/config/bluemap/webserver.conf:ro
+      # A full pre-generation runs for days; continueOnRestart makes it survive
+      # a deploy instead of starting over. Chunky keeps its task state beside it.
+      - ./server/chunky/config.json:/data/config/chunky/config.json:ro
 
     networks: [default, web]
 
@@ -117,12 +123,15 @@ services:
       UID: "${PUID:-1000}"
       GID: "${PGID:-1000}"
 
-      BACKUP_INTERVAL: "${BACKUP_INTERVAL:-24h}"
+      # Clock-based, not interval-based: the container's TZ is Europe/Kyiv, so
+      # this is local midnight rather than 24h after whenever it last started.
+      CRON_SCHEDULE: "${BACKUP_CRON:-0 0 * * *}"
       PRUNE_BACKUPS_DAYS: "${PRUNE_BACKUPS_DAYS:-3}"
-      INITIAL_DELAY: "5m"
       BACKUP_NAME: "${LEVEL_NAME:-world}"
       BACKUP_METHOD: "tar"
-      PAUSE_IF_NO_PLAYERS: "true"
+      # Must stay false: at midnight nobody is online, and pausing would skip
+      # every scheduled run.
+      PAUSE_IF_NO_PLAYERS: "false"
       # bluemap is excluded: large, and fully regenerable from the world
       EXCLUDES: "*.jar,cache,logs,*.tmp,libraries,versions,downloads,crash-reports,bluemap"
 
@@ -194,14 +203,25 @@ services:
       RCON_PASSWORD: "${RCON_PASSWORD:?not set}"
       MC_CONTAINER: "minecraft"
       MC_DATA_DIR: "/mcdata"
+      MC_VERSION: "${MC_VERSION:-1.21.1}"
+      # The guide tells players which build to install, so it reads the same
+      # values the server boots with rather than repeating them.
+      NEOFORGE_VERSION: "${NEOFORGE_VERSION:-21.1.248}"
+      VOICE_PORT: "${VOICE_PORT:-24454}"
       SERVER_HOST: "${SERVER_HOST:-server.sacrificed.me}"
       MAP_URL: "${MAP_URL:-https://${MAP_HOST:-}}"
+      MAP_PORT: "${MAP_PORT:-8100}"
       DATABASE_URL: "postgres://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:?not set}@postgres:5432/${POSTGRES_DB:-admin}"
 
     volumes:
       - ./server/data:/mcdata:ro
       - ./server/backups:/backups:ro
       - ./server/modpack:/modpack:ro
+      # The declared lists, so the Mods page can link each entry to Modrinth
+      - ./server/mods.txt:/extras/mods.txt:ro
+      - ./server/client-mods.txt:/extras/client-mods.txt:ro
+      - ./server/shaders.txt:/extras/shaders.txt:ro
+      - ./server/resourcepacks.txt:/extras/resourcepacks.txt:ro
       # Optional: CPU and memory readings. The UI hides them when absent.
       - /var/run/docker.sock:/var/run/docker.sock:ro
 

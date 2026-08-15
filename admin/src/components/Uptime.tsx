@@ -1,13 +1,11 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { duration } from "./format";
+import { duration } from "@/lib/format";
 
 /**
- * Reading the clock during render is impure — the value would change on any
- * re-render for reasons unrelated to the data. This subscribes to a ticking
- * store instead, so the figure updates on a schedule we control and the render
- * stays a pure function of its inputs.
+ * Reading the clock during render is impure. Subscribing to a ticking store
+ * instead keeps render a pure function of its inputs.
  */
 function subscribe(onChange: () => void) {
   const timer = setInterval(onChange, 30_000);

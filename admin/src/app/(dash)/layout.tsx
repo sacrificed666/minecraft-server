@@ -1,7 +1,7 @@
 import { AppShell } from "@/components/AppShell";
-import { MetricsProvider } from "@/components/MetricsProvider";
+import { MetricsProvider } from "@/components/providers/MetricsProvider";
 import { ToastProvider } from "@/components/Toast";
-import { SessionProvider } from "@/components/SessionProvider";
+import { SessionProvider } from "@/components/providers/SessionProvider";
 
 export const dynamic = "force-dynamic";
 

@@ -1,32 +1,34 @@
 ---
+# Swap file: created once, formatted once, enabled now and at boot.
+
 - name: 📦 Setup | Swap file
-  ansible.builtin.command: fallocate -l {{ swap_gb }}G /swapfile
+  ansible.builtin.command: fallocate -l {{ common_swap_gb }}G /swapfile
   args:
     creates: /swapfile
-  register: swap_created
+  register: common_swap_file
 
-- name: 🔒 Harden | Swap file permissions
+- name: 🔒 Harden | Swap file readable by root only
   ansible.builtin.file:
     path: /swapfile
     mode: "0600"
 
 - name: ⚙️ Config | Format the swap file
   ansible.builtin.command: mkswap /swapfile
-  when: swap_created.changed
+  when: common_swap_file is changed
   changed_when: true
 
 - name: ⚙️ Config | Swap in fstab
   ansible.builtin.lineinfile:
     path: /etc/fstab
-    line: "/swapfile none swap sw 0 0"
+    line: /swapfile none swap sw 0 0
     state: present
 
 - name: 🔍 Check | Active swap
   ansible.builtin.command: swapon --show=NAME --noheadings
-  register: active_swap
+  register: common_active_swap
   changed_when: false
 
 - name: ⚙️ Config | Enable swap now
   ansible.builtin.command: swapon /swapfile
-  when: "'/swapfile' not in active_swap.stdout"
+  when: "'/swapfile' not in common_active_swap.stdout"
   changed_when: true

@@ -1,18 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { GlassCard, CardHeader } from "@/components/GlassCard";
-import { bytes } from "@/components/format";
 import { Uptime } from "@/components/Uptime";
-import { useMetrics } from "@/components/MetricsProvider";
+import { useMetrics } from "@/components/providers/MetricsProvider";
+import { usePolled } from "@/lib/polling";
+import { bytes } from "@/lib/format";
+import type { ServerResponse, ServerSettings } from "@/lib/api";
 
-type ServerInfo = {
-  properties: Record<string, string>;
-  worldBytes: number | null;
-  startedAt: number | null;
-};
-
-const GROUPS: { title: string; keys: [string, string][] }[] = [
+// Keyed by ServerSettings, so a field renamed on the server fails to compile
+const GROUPS: { title: string; keys: [keyof ServerSettings, string][] }[] = [
   {
     title: "World",
     keys: [
@@ -43,15 +39,8 @@ const GROUPS: { title: string; keys: [string, string][] }[] = [
 ];
 
 export default function SettingsPage() {
-  const { snap } = useMetrics();
-  const [info, setInfo] = useState<ServerInfo | null>(null);
-
-  useEffect(() => {
-    fetch("/api/server")
-      .then((r) => r.json())
-      .then(setInfo)
-      .catch(() => {});
-  }, []);
+  const { data: snap } = useMetrics();
+  const { data: info } = usePolled<ServerResponse>("/api/server");
 
   return (
     <div className="space-y-4">
@@ -63,13 +52,13 @@ export default function SettingsPage() {
         <div className="grid gap-6 px-5 pb-5 sm:grid-cols-3">
           {GROUPS.map((group) => (
             <section key={group.title}>
-              <h3 className="mb-2 text-xs font-semibold tracking-wide text-[var(--ink-muted)] uppercase">
+              <h3 className="mb-2 text-xs font-semibold tracking-wide text-ink-muted uppercase">
                 {group.title}
               </h3>
               <dl className="space-y-1.5 text-sm">
                 {group.keys.map(([key, label]) => (
                   <div key={key} className="flex justify-between gap-3">
-                    <dt className="text-[var(--ink-muted)]">{label}</dt>
+                    <dt className="text-ink-muted">{label}</dt>
                     <dd className="truncate font-medium">
                       {info?.properties[key] || "—"}
                     </dd>
@@ -92,15 +81,15 @@ export default function SettingsPage() {
         <GlassCard delay={2}>
           <CardHeader title="Runtime" />
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 px-5 pb-5 text-sm">
-            <dt className="text-[var(--ink-muted)]">Uptime</dt>
+            <dt className="text-ink-muted">Uptime</dt>
             <dd className="text-right font-medium tabular-nums">
               <Uptime startedAt={info?.startedAt ?? null} />
             </dd>
-            <dt className="text-[var(--ink-muted)]">World size</dt>
+            <dt className="text-ink-muted">World size</dt>
             <dd className="text-right font-medium tabular-nums">
               {info?.worldBytes != null ? bytes(info.worldBytes) : "—"}
             </dd>
-            <dt className="text-[var(--ink-muted)]">Memory limit</dt>
+            <dt className="text-ink-muted">Memory limit</dt>
             <dd className="text-right font-medium tabular-nums">
               {snap?.memoryLimitBytes ? bytes(snap.memoryLimitBytes) : "—"}
             </dd>
@@ -110,7 +99,7 @@ export default function SettingsPage() {
 
       <GlassCard delay={3}>
         <CardHeader title="Why nothing here is editable" />
-        <div className="space-y-3 px-5 pb-5 text-sm text-[var(--ink-secondary)]">
+        <div className="space-y-3 px-5 pb-5 text-sm text-ink-secondary">
           <p>
             The server re-applies these values from{" "}
             <code className="font-mono text-xs">.env</code> on every start
@@ -118,7 +107,7 @@ export default function SettingsPage() {
             A change made here would be silently reverted on the next restart,
             which is worse than no button at all.
           </p>
-          <pre className="overflow-x-auto rounded-xl bg-[var(--glass-fill-2)] p-3 font-mono text-xs">
+          <pre className="overflow-x-auto rounded-xl bg-(--glass-inset) p-3 font-mono text-xs">
 {`nano .env
 make restart`}
           </pre>

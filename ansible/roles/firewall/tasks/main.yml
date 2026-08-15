@@ -1,40 +1,34 @@
 ---
-# SSH is allowed before the defaults are set and ufw is enabled — any other
-# order can lock the playbook out of the host mid-run.
-#
-# The command form is used rather than community.general.ufw so the playbook
-# needs nothing from Galaxy.
+# Ports are allowed before anything is denied, so the run cannot lock itself out.
 
-- name: 🔥 Config | Allow SSH
-  ansible.builtin.command: ufw allow {{ ansible_port | default(22) }}/tcp
-  register: ufw_ssh
-  changed_when: "'Rule added' in ufw_ssh.stdout or 'Rules updated' in ufw_ssh.stdout"
+# ufw reports success whether or not it changed anything, so state is read once
+# and the tasks below run only on a difference.
+- name: 🔍 Check | Current ufw state
+  ansible.builtin.command: ufw status verbose
+  register: firewall_state
+  changed_when: false
 
-- name: 🔥 Config | Allow the game and web ports
-  ansible.builtin.command: ufw allow {{ item }}/tcp
-  loop: "{{ open_ports }}"
-  register: ufw_ports
-  changed_when: "'Rule added' in ufw_ports.stdout or 'Rules updated' in ufw_ports.stdout"
+- name: ⚙️ Config | Allow SSH, the game and the web ports
+  ansible.builtin.command: ufw allow {{ item }}
+  loop: "{{ [(ansible_port | default(22)) ~ '/tcp'] + firewall_open_ports }}"
+  register: firewall_rule
+  changed_when: "'Rule added' in firewall_rule.stdout"
 
 - name: 🔒 Harden | Default deny incoming
   ansible.builtin.command: ufw default deny incoming
-  register: ufw_in
-  changed_when: "'updated' in ufw_in.stdout"
+  when: "'deny (incoming)' not in firewall_state.stdout"
+  changed_when: true
 
 - name: ⚙️ Config | Default allow outgoing
   ansible.builtin.command: ufw default allow outgoing
-  register: ufw_out
-  changed_when: "'updated' in ufw_out.stdout"
+  when: "'allow (outgoing)' not in firewall_state.stdout"
+  changed_when: true
 
-- name: 🔥 Config | Enable ufw
+- name: ⚙️ Config | Enable ufw
   ansible.builtin.command: ufw --force enable
-  register: ufw_enable
-  changed_when: "'active' in ufw_enable.stdout"
+  when: "'Status: active' not in firewall_state.stdout"
+  changed_when: true
 
-# Docker publishes ports by writing iptables rules that bypass ufw's INPUT
-# chain, so a published port is reachable even when ufw claims to deny it.
-# compose.yaml handles this by binding RCON, the panel and the map to
-# loopback; ufw is defence in depth here, not the only control.
 - name: 📊 Report | Docker bypasses ufw
   ansible.builtin.debug:
     msg: >-

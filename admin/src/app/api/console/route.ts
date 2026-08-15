@@ -10,24 +10,30 @@ export const dynamic = "force-dynamic";
  * The panel is for day-to-day operation; stopping the server is a shell job,
  * where whoever does it can see what else is running.
  */
-const BLOCKED = [/^\s*stop\b/i, /^\s*restart\b/i, /^\s*op\b/i, /^\s*deop\b/i];
+const BLOCKED = [/^stop\b/i, /^restart\b/i, /^op\b/i, /^deop\b/i];
+
+const MAX_LENGTH = 300;
 
 export async function POST(request: Request) {
   const { denied } = await requireAdmin();
   if (denied) return denied;
 
-  let command = "";
+  let raw = "";
   try {
     const body = await request.json();
-    command = typeof body?.command === "string" ? body.command.trim() : "";
+    raw = typeof body?.command === "string" ? body.command : "";
   } catch {
     return NextResponse.json({ error: "Malformed request" }, { status: 400 });
   }
 
+  // Normalised before the blocklist runs, not after: "/stop" has to be matched
+  // by the same rule that matches "stop".
+  const command = raw.trim().replace(/^\/+/, "").trim();
+
   if (!command) {
     return NextResponse.json({ error: "Empty command" }, { status: 400 });
   }
-  if (command.length > 300) {
+  if (command.length > MAX_LENGTH) {
     return NextResponse.json({ error: "Command too long" }, { status: 400 });
   }
   if (BLOCKED.some((re) => re.test(command))) {
@@ -38,7 +44,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const output = await runCommand(command.replace(/^\//, ""));
+    const output = await runCommand(command);
     return NextResponse.json({ ok: true, output: output || "(no output)" });
   } catch (err) {
     return NextResponse.json(

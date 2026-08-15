@@ -1,15 +1,10 @@
 ---
-# Prepares an Ubuntu 26.04 host to run this stack, then deploys it.
+# Takes a fresh Ubuntu host to a running stack. Every task is idempotent.
+# Layout, variables and conventions: see README.md.
 #
-#   ansible-playbook site.yml                 # everything
-#   ansible-playbook site.yml --tags deploy   # just pull and restart
-#
-# Every task is idempotent: running it twice changes nothing the second time.
-# Task names follow "emoji type | what", so the output reads as phases.
-#
-# Roles run in order and each assumes the previous one finished: firewall
-# expects ufw from common, minecraft expects Docker. Running a later tag alone
-# is fine on a host that has already been provisioned once.
+#   ansible-playbook site.yml                 # provision and deploy
+#   ansible-playbook site.yml --tags deploy   # pull and restart only
+
 - name: ⛏️ Minecraft | Server host
   hosts: all
   become: true
@@ -23,18 +18,16 @@
           {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}.
       tags: [always]
 
+  # Order matters: hardening locks SSH down to the key common installs, and
+  # both firewall and minecraft need packages the earlier roles put there.
   roles:
     - role: common
       tags: [common]
-
     - role: hardening
       tags: [hardening]
-
     - role: docker
       tags: [docker]
-
     - role: firewall
       tags: [firewall]
-
     - role: minecraft
       tags: [deploy]

@@ -31,15 +31,16 @@
   --warning: #fab219;
   --critical: #d03b3b;
 
-  --glass-fill: rgba(255, 255, 255, 0.55);
-  --glass-fill-2: rgba(255, 255, 255, 0.28);
+  --glass-fill: rgba(255, 255, 255, 0.62);
+  --glass-fill-2: rgba(255, 255, 255, 0.42);
+  --glass-inset: rgba(15, 23, 42, 0.05);
   --glass-border: rgba(15, 23, 42, 0.1);
   --glass-highlight: rgba(255, 255, 255, 0.85);
   --glass-shadow: 0 8px 32px rgba(15, 23, 42, 0.1);
 
-  --blob-1: rgba(42, 120, 214, 0.28);
-  --blob-2: rgba(27, 175, 122, 0.24);
-  --blob-3: rgba(235, 104, 52, 0.18);
+  --blob-1: rgba(42, 120, 214, 0.20);
+  --blob-2: rgba(27, 175, 122, 0.16);
+  --blob-3: rgba(235, 104, 52, 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -61,15 +62,16 @@
     --series-cpu: #d95926;
     --series-players: #199e70;
 
-    --glass-fill: rgba(255, 255, 255, 0.07);
-    --glass-fill-2: rgba(255, 255, 255, 0.02);
+    --glass-fill: rgba(255, 255, 255, 0.075);
+    --glass-fill-2: rgba(255, 255, 255, 0.035);
+    --glass-inset: rgba(0, 0, 0, 0.22);
     --glass-border: rgba(255, 255, 255, 0.12);
     --glass-highlight: rgba(255, 255, 255, 0.22);
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 
-    --blob-1: rgba(57, 135, 229, 0.3);
-    --blob-2: rgba(25, 158, 112, 0.26);
-    --blob-3: rgba(217, 89, 38, 0.2);
+    --blob-1: rgba(57, 135, 229, 0.26);
+    --blob-2: rgba(25, 158, 112, 0.20);
+    --blob-3: rgba(217, 89, 38, 0.14);
   }
 }
 
@@ -91,15 +93,16 @@
   --series-cpu: #d95926;
   --series-players: #199e70;
 
-  --glass-fill: rgba(255, 255, 255, 0.07);
-  --glass-fill-2: rgba(255, 255, 255, 0.02);
+  --glass-fill: rgba(255, 255, 255, 0.075);
+  --glass-fill-2: rgba(255, 255, 255, 0.035);
+  --glass-inset: rgba(0, 0, 0, 0.22);
   --glass-border: rgba(255, 255, 255, 0.12);
   --glass-highlight: rgba(255, 255, 255, 0.22);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 
-  --blob-1: rgba(57, 135, 229, 0.3);
-  --blob-2: rgba(25, 158, 112, 0.26);
-  --blob-3: rgba(217, 89, 38, 0.2);
+  --blob-1: rgba(57, 135, 229, 0.26);
+  --blob-2: rgba(25, 158, 112, 0.20);
+  --blob-3: rgba(217, 89, 38, 0.14);
 }
 
 @theme inline {
@@ -122,158 +125,197 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ─── Ambient background ───────────────────────────────────────────── */
+/*
+ * Component styles live in a layer so Tailwind utilities can override them.
+ * Unlayered CSS beats every layer, which silently turned `glass fixed`
+ * into `position: relative` and collapsed the mobile layout.
+ */
+@layer components {
+  /* ─── Ambient background ───────────────────────────────────────────── */
 
-.ambient {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  overflow: hidden;
-  background:
-    radial-gradient(120% 90% at 50% -20%, var(--page) 0%, var(--page-2) 100%);
-}
-
-.ambient::after {
-  /* Minecraft texel grid — barely there, enough to read as blocks */
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--glass-border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--glass-border) 1px, transparent 1px);
-  background-size: 32px 32px;
-  opacity: 0.35;
-  mask-image: radial-gradient(120% 80% at 50% 0%, #000 20%, transparent 75%);
-}
-
-.blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(90px);
-  will-change: transform;
-  animation: drift 26s ease-in-out infinite alternate;
-}
-
-.blob-1 { width: 44rem; height: 44rem; top: -14rem; left: -10rem; background: var(--blob-1); }
-.blob-2 { width: 38rem; height: 38rem; top: 22%; right: -12rem; background: var(--blob-2); animation-delay: -9s; }
-.blob-3 { width: 30rem; height: 30rem; bottom: -10rem; left: 28%; background: var(--blob-3); animation-delay: -17s; }
-
-@keyframes drift {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to   { transform: translate3d(4rem, -3rem, 0) scale(1.12); }
-}
-
-/* ─── Liquid glass ─────────────────────────────────────────────────── */
-
-.glass {
-  position: relative;
-  border-radius: 1.25rem;
-  border: 1px solid var(--glass-border);
-  background: linear-gradient(150deg, var(--glass-fill), var(--glass-fill-2));
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  box-shadow: var(--glass-shadow);
-  overflow: hidden;
-  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Specular edge: the highlight that makes glass read as glass */
-.glass::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(
-    150deg,
-    var(--glass-highlight),
-    transparent 35%,
-    transparent 65%,
-    var(--glass-highlight)
-  );
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  opacity: 0.7;
-  pointer-events: none;
-}
-
-.glass-hover:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
-}
-
-/* ─── Entrance and state animations ────────────────────────────────── */
-
-@keyframes rise {
-  from { opacity: 0; transform: translateY(14px) scale(0.985); }
-  to   { opacity: 1; transform: none; }
-}
-
-.rise {
-  animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes pulse-ring {
-  0%   { box-shadow: 0 0 0 0 currentColor; opacity: 0.7; }
-  70%  { box-shadow: 0 0 0 7px transparent; opacity: 0; }
-  100% { box-shadow: 0 0 0 0 transparent; opacity: 0; }
-}
-
-.pulse-dot::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  animation: pulse-ring 2.2s ease-out infinite;
-}
-
-@keyframes draw {
-  from { stroke-dashoffset: var(--dash); }
-  to   { stroke-dashoffset: 0; }
-}
-
-.chart-line {
-  stroke-dasharray: var(--dash);
-  animation: draw 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes shimmer {
-  from { background-position: -200% 0; }
-  to   { background-position: 200% 0; }
-}
-
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--glass-fill-2) 25%,
-    var(--glass-fill) 50%,
-    var(--glass-fill-2) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.6s linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .blob,
-  .rise,
-  .chart-line,
-  .skeleton,
-  .pulse-dot::after {
-    animation: none !important;
+  .ambient {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 50% -20%, var(--page) 0%, var(--page-2) 100%);
   }
-  .glass,
+
+  .ambient::after {
+    /* Minecraft texel grid — barely there, enough to read as blocks */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--glass-border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--glass-border) 1px, transparent 1px);
+    background-size: 32px 32px;
+    opacity: 0.35;
+    mask-image: radial-gradient(120% 80% at 50% 0%, #000 20%, transparent 75%);
+  }
+
+  /*
+   * The blobs used to sit level with the content, so each card sampled a
+   * different one and came out a different colour. They live above the fold
+   * now, and the scrim below fades them out before the cards start: the glass
+   * stays translucent, but every card samples the same neutral field.
+   */
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(110px);
+    will-change: transform;
+    animation: drift 26s ease-in-out infinite alternate;
+  }
+
+  .blob-1 { width: 46rem; height: 34rem; top: -18rem; left: -12rem; background: var(--blob-1); }
+  .blob-2 { width: 40rem; height: 30rem; top: -15rem; right: -14rem; background: var(--blob-2); animation-delay: -9s; }
+  .blob-3 { width: 34rem; height: 26rem; top: -8rem; left: 34%; background: var(--blob-3); animation-delay: -17s; }
+
+  .ambient::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(to bottom, transparent 0, var(--page) 58%);
+  }
+
+  @keyframes drift {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to   { transform: translate3d(4rem, -3rem, 0) scale(1.12); }
+  }
+
+  /* ─── Liquid glass ─────────────────────────────────────────────────── */
+
+  .glass {
+    position: relative;
+    border-radius: 1.25rem;
+    border: 1px solid var(--glass-border);
+    background: linear-gradient(150deg, var(--glass-fill), var(--glass-fill-2));
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    box-shadow: var(--glass-shadow);
+    overflow: hidden;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Specular edge: the highlight that makes glass read as glass */
+  .glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      150deg,
+      var(--glass-highlight),
+      transparent 35%,
+      transparent 65%,
+      var(--glass-highlight)
+    );
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
   .glass-hover:hover {
-    transition: none;
-    transform: none;
+    transform: translateY(-3px);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
   }
-}
 
-/* Keyboard focus stays visible on every interactive surface */
-:where(a, button, input, [tabindex]):focus-visible {
-  outline: 2px solid var(--series-tps);
-  outline-offset: 2px;
-  border-radius: 0.5rem;
+  /* A pointer can hover; a finger cannot. Lifting cards on tap reads as lag. */
+  @media (hover: none) {
+    .glass-hover:hover {
+      transform: none;
+      box-shadow: var(--glass-shadow);
+    }
+  }
+
+  /* Values that tick every 5s: fade the change instead of swapping it */
+  @keyframes value-in {
+    from { opacity: 0; transform: translateY(2px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .value-in {
+    animation: value-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* ─── Entrance and state animations ────────────────────────────────── */
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(14px) scale(0.985); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .rise {
+    animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 currentColor; opacity: 0.7; }
+    70%  { box-shadow: 0 0 0 7px transparent; opacity: 0; }
+    100% { box-shadow: 0 0 0 0 transparent; opacity: 0; }
+  }
+
+  .pulse-dot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    animation: pulse-ring 2.2s ease-out infinite;
+  }
+
+  @keyframes draw {
+    from { stroke-dashoffset: var(--dash); }
+    to   { stroke-dashoffset: 0; }
+  }
+
+  .chart-line {
+    stroke-dasharray: var(--dash);
+    animation: draw 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to   { background-position: 200% 0; }
+  }
+
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--glass-fill-2) 25%,
+      var(--glass-fill) 50%,
+      var(--glass-fill-2) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .blob,
+    .rise,
+    .chart-line,
+    .skeleton,
+    .value-in,
+    .pulse-dot::after {
+      animation: none !important;
+    }
+    .glass,
+    .glass-hover:hover {
+      transition: none;
+      transform: none;
+    }
+  }
+
+  /* Keyboard focus stays visible on every interactive surface */
+  :where(a, button, input, [tabindex]):focus-visible {
+    outline: 2px solid var(--series-tps);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
 }

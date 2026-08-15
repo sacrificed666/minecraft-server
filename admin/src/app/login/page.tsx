@@ -39,8 +39,8 @@ export default function LoginPage() {
       <div className="glass rise w-full max-w-sm p-8">
         <div className="mb-6 text-center">
           <div
-            className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl border border-[var(--glass-border)]"
-            style={{ background: "var(--glass-fill-2)" }}
+            className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl border border-(--glass-border)"
+            style={{ background: "var(--glass-inset)" }}
             aria-hidden="true"
           >
             <svg viewBox="0 0 16 16" className="size-7" fill="var(--series-players)">
@@ -51,7 +51,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-xl font-semibold tracking-tight">Server Admin Panel</h1>
-          <p className="mt-1 text-sm text-[var(--ink-muted)]">
+          <p className="mt-1 text-sm text-ink-muted">
             Sign in with the account you were given
           </p>
         </div>
@@ -65,7 +65,7 @@ export default function LoginPage() {
             aria-label="Username"
             autoFocus
             autoComplete="username"
-            className="w-full rounded-xl border border-[var(--glass-border)] bg-[var(--glass-fill-2)] px-4 py-2.5 text-sm text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)]"
+            className="w-full rounded-xl border border-(--glass-border) bg-(--glass-inset) px-4 py-2.5 text-sm text-ink placeholder:text-ink-muted"
           />
           <input
             type="password"
@@ -74,12 +74,12 @@ export default function LoginPage() {
             placeholder="Password"
             aria-label="Password"
             autoComplete="current-password"
-            className="w-full rounded-xl border border-[var(--glass-border)] bg-[var(--glass-fill-2)] px-4 py-2.5 text-sm text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)]"
+            className="w-full rounded-xl border border-(--glass-border) bg-(--glass-inset) px-4 py-2.5 text-sm text-ink placeholder:text-ink-muted"
           />
           <button
             type="submit"
             disabled={busy || !password || !username}
-            className="w-full rounded-xl border border-[var(--glass-border)] bg-[var(--glass-fill)] px-4 py-2.5 text-sm font-semibold transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-40"
+            className="w-full rounded-xl border border-(--glass-border) bg-(--glass-fill) px-4 py-2.5 text-sm font-semibold transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-40"
           >
             {busy ? "Checking…" : "Sign in"}
           </button>

@@ -1,7 +1,5 @@
 name: 🚀 Deploy | Minecraft stack
 
-# Manual only. Deploying a Minecraft server drops whoever is playing, so it is
-# never triggered by a push.
 on:
   workflow_dispatch:
     inputs:
@@ -19,16 +17,18 @@ on:
         type: boolean
         default: false
 
-# One deployment at a time, and never cancel one midway: a half-applied
-# compose change is worse than waiting.
+permissions:
+  contents: read
+
 concurrency:
   group: deploy
   cancel-in-progress: false
 
 jobs:
   check:
-    name: 🔍 Check | Panel and compose
+    name: 🔍 Check | Panel, compose and playbook
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: 📥 Setup | Check out the repository
         uses: actions/checkout@v7
@@ -41,144 +41,87 @@ jobs:
           cache-dependency-path: admin/package-lock.json
 
       - name: 📦 Setup | Install
-        run: npm ci
         working-directory: admin
+        run: npm ci
 
       - name: 🧹 Lint | ESLint and React rules
-        run: npm run lint
         working-directory: admin
+        run: npm run lint
 
       - name: 🏗️ Build | Next.js production build
         working-directory: admin
-        # A placeholder: nothing secret is read at build time, and every real
-        # value comes from the server's .env at runtime.
         env:
           SESSION_SECRET: build-time-placeholder-value
         run: npm run build
 
-      # --env-file rather than sourcing: compose has its own parser, and a
-      # value like `MOTD=A Minecraft Server` is not valid shell.
       - name: 🐳 Verify | compose.yaml resolves
-        env:
-          RCON_PASSWORD: ci
-          ADMIN_PASSWORD: ci
-          SESSION_SECRET: ci-placeholder-value
-          POSTGRES_PASSWORD: ci
-          ACME_EMAIL: ci@example.com
         run: |
-          docker compose --env-file .env.example config -q
-          echo "compose.yaml is valid"
+          make init
+          make config
+
+      - name: 🔧 Verify | Ansible playbook parses
+        run: |
+          pipx install ansible-core
+          make provision-lint
 
   deploy:
     name: 📤 Apply | Server and panel
     needs: check
     runs-on: ubuntu-latest
     environment: production
-
-    # Everything the remote script needs, passed as environment rather than
-    # interpolated into shell strings — GitHub expressions and shell quoting
-    # do not mix safely.
+    timeout-minutes: 45
     env:
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/minecraft-server' }}
       TARGET: ${{ inputs.target }}
+      MODPACK: ${{ inputs.rebuild_modpack }}
       BRANCH: ${{ github.ref_name }}
-
+      SHA: ${{ github.sha }}
     steps:
-      - name: 🔑 Setup | SSH access
-        env:
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
-          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
-        run: |
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          # Pinned host key. Without it the first connection trusts whatever
-          # answers, which gives up most of what SSH is for.
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-          {
-            echo "Host target"
-            echo "  HostName $SSH_HOST"
-            echo "  User $SSH_USER"
-            echo "  Port $SSH_PORT"
-            echo "  IdentityFile ~/.ssh/id_ed25519"
-            echo "  StrictHostKeyChecking yes"
-            echo "  BatchMode yes"
-          } > ~/.ssh/config
-          chmod 600 ~/.ssh/config
+      - name: ⚙️ Deploy | Pull, apply and verify
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          envs: DEPLOY_PATH,TARGET,MODPACK,BRANCH,SHA
+          command_timeout: 30m
+          script: |
+            set -euo pipefail
+            cd "$DEPLOY_PATH"
 
-      # The heredoc delimiter is quoted, so nothing expands locally; the values
-      # arrive as real environment variables on the far side.
-      - name: 📥 Deploy | Pull the new revision
-        run: |
-          ssh target "DEPLOY_PATH='$DEPLOY_PATH' BRANCH='$BRANCH' bash -s" <<'REMOTE'
-          set -euo pipefail
-          cd "$DEPLOY_PATH"
-          git fetch --prune origin
-          git checkout "$BRANCH"
-          git reset --hard "origin/$BRANCH"
-          git --no-pager log -1 --oneline
-          REMOTE
+            # Plain markers rather than ::group::, which only works when the
+            # action passes remote output through unprefixed — and this way the
+            # script reads the same when run by hand.
+            echo "▸ checkout — the commit the checks passed on, not the tip"
+            git fetch --prune origin
+            git checkout "$BRANCH"
+            git reset --hard "$SHA"
+            git --no-pager log -1 --format='  now at %h %s (%an, %ar)'
 
-      - name: ⚙️ Deploy | Apply the target
-        run: |
-          ssh target "DEPLOY_PATH='$DEPLOY_PATH' TARGET='$TARGET' bash -s" <<'REMOTE'
-          set -euo pipefail
-          cd "$DEPLOY_PATH"
-          case "$TARGET" in
-            admin)
-              # --no-deps so rebuilding the panel does not restart the game
-              docker compose up -d --build --no-deps admin
-              ;;
-            stack)
-              docker compose up -d --build
-              ;;
-            modpack)
+            echo "▸ apply $TARGET"
+            case "$TARGET" in
+              admin)   make admin   ;;
+              stack)   make rebuild ;;
+              modpack) make modpack ;;
+            esac
+            if [ "$MODPACK" = true ] && [ "$TARGET" != modpack ]; then
               make modpack
-              ;;
-          esac
-          REMOTE
-
-      - name: 🎁 Build | Player modpack
-        if: inputs.rebuild_modpack && inputs.target != 'modpack'
-        run: |
-          ssh target "DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE'
-          set -euo pipefail
-          cd "$DEPLOY_PATH"
-          make modpack
-          REMOTE
-
-      - name: 🩺 Verify | Panel reports healthy
-        run: |
-          ssh target "DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE'
-          set -uo pipefail
-          cd "$DEPLOY_PATH"
-          for _ in $(seq 1 30); do
-            state=$(docker inspect minecraft-admin --format '{{.State.Health.Status}}' 2>/dev/null || echo missing)
-            if [ "$state" = healthy ]; then
-              echo "panel healthy"
-              exit 0
             fi
-            sleep 5
-          done
-          echo "panel did not become healthy in 150s"
-          docker compose logs --tail=50 admin
-          exit 1
-          REMOTE
 
-      - name: 📊 Report | Stack status
+            echo "▸ verify"
+            make health
+            make status
+
+      - name: 📊 Report | Run summary
         if: always()
+        env:
+          OUTCOME: ${{ job.status }}
         run: |
-          {
-            echo "### Deployed \`$TARGET\` from \`$BRANCH\`"
-            echo
-            echo '```'
-            ssh target "DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE' || echo "(host unreachable)"
-          cd "$DEPLOY_PATH"
-          docker compose ps --format 'table {{.Service}}\t{{.Status}}'
-          REMOTE
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$OUTCOME" = success ]; then
+            echo "::notice title=Deployed::$TARGET from $BRANCH at ${SHA:0:7}"
+          else
+            echo "::error title=Deploy failed::$TARGET at ${SHA:0:7} — see the step log"
+          fi
+          echo "### Deploy \`$TARGET\` — $OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`$BRANCH\` @ \`${SHA:0:7}\`" >> "$GITHUB_STEP_SUMMARY"

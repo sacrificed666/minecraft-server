@@ -1,0 +1,37 @@
+# Mods that go to players but must never reach the server.
+#
+# `make modpack` downloads these straight from Modrinth into the pack. They are
+# deliberately not in mods.txt: a mod here hooks NeoForge's launcher, which runs
+# before any client-side check, so installing it on a dedicated server aborts
+# the boot rather than being ignored.
+#
+# Same syntax as mods.txt: one slug per line, ":beta" to accept a beta build.
+# The loader is neoforge and the game version comes from MC_VERSION in .env.
+#
+# Anything client-side that does *not* hook the launcher belongs in mods.txt
+# instead — the server carries it harmlessly and the pack picks it up from
+# there, which keeps one list authoritative.
+
+sodium
+sodium-extra
+iris
+
+entityculling
+immediatelyfast
+moreculling
+dynamic-fps
+controlling
+mouse-tweaks
+betterf3
+chat-heads
+chatanimation
+not-enough-animations
+durability-tooltip
+chat-tools
+longer-chat-history
+
+# Libraries the mods above need. Only the ones no server-side mod pulls in:
+# supermartijn642s-config-lib is deliberately absent — rechiseled keeps it on
+# the server, so the pack already gets it and a second copy would clash.
+cloth-config
+searchables

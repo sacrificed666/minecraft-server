@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { GlassCard, CardHeader } from "./GlassCard";
-import { useToast } from "./Toast";
+import { GlassCard, CardHeader } from "@/components/GlassCard";
+import { useToast } from "@/components/Toast";
 
 type Line = { id: number; kind: "in" | "out" | "err"; text: string };
 
@@ -91,7 +91,7 @@ export function ConsolePanel({ delay = 0 }: { delay?: number }) {
           lines.length > 0 && (
             <button
               onClick={() => setLines([])}
-              className="rounded-lg px-2 py-1 text-xs text-[var(--ink-muted)] hover:text-[var(--ink-primary)]"
+              className="rounded-lg px-2 py-1 text-xs text-ink-muted hover:text-ink"
             >
               Clear
             </button>
@@ -101,19 +101,19 @@ export function ConsolePanel({ delay = 0 }: { delay?: number }) {
 
       <div
         ref={logRef}
-        className="mx-3 min-h-48 flex-1 overflow-y-auto rounded-xl bg-[var(--glass-fill-2)] p-3 font-mono text-xs leading-relaxed"
+        className="mx-3 min-h-48 flex-1 overflow-y-auto rounded-xl bg-(--glass-inset) p-3 font-mono text-xs leading-relaxed"
         role="log"
         aria-live="polite"
       >
         {lines.length === 0 && (
-          <p className="text-[var(--ink-muted)]">
+          <p className="text-ink-muted">
             Try a shortcut below, or type a command. ↑ and ↓ walk through history.
           </p>
         )}
         {lines.map((line) => (
           <div
             key={line.id}
-            className="rise whitespace-pre-wrap break-words"
+            className="rise whitespace-pre-wrap wrap-break-word"
             style={{
               color:
                 line.kind === "err"
@@ -134,7 +134,7 @@ export function ConsolePanel({ delay = 0 }: { delay?: number }) {
             key={s}
             onClick={() => void run(s)}
             disabled={busy}
-            className="rounded-lg border border-[var(--glass-border)] px-2 py-1 font-mono text-[11px] text-[var(--ink-secondary)] transition-transform hover:scale-105 active:scale-95 disabled:opacity-40"
+            className="rounded-lg border border-(--glass-border) px-2 py-1 font-mono text-[11px] text-ink-secondary transition-transform hover:scale-105 active:scale-95 disabled:opacity-40"
           >
             {s}
           </button>
@@ -155,12 +155,12 @@ export function ConsolePanel({ delay = 0 }: { delay?: number }) {
           placeholder="say Hello everyone"
           aria-label="Server command"
           maxLength={300}
-          className="min-w-0 flex-1 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-fill-2)] px-3 py-2 font-mono text-sm placeholder:text-[var(--ink-muted)]"
+          className="min-w-0 flex-1 rounded-xl border border-(--glass-border) bg-(--glass-inset) px-3 py-2 font-mono text-sm placeholder:text-ink-muted"
         />
         <button
           type="submit"
           disabled={busy || !command.trim()}
-          className="rounded-xl border border-[var(--glass-border)] bg-[var(--glass-fill)] px-4 py-2 text-sm font-medium transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-40"
+          className="rounded-xl border border-(--glass-border) bg-(--glass-fill) px-4 py-2 text-sm font-medium transition-transform hover:scale-[1.03] active:scale-95 disabled:opacity-40"
         >
           {busy ? "…" : "Run"}
         </button>

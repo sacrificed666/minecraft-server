@@ -1,4 +1,7 @@
 ---
+# Docker Engine from upstream: the distro package lags, and Compose v2 ships
+# only as a plugin there.
+
 docker_packages:
   - docker-ce
   - docker-ce-cli
@@ -6,7 +9,6 @@ docker_packages:
   - docker-buildx-plugin
   - docker-compose-plugin
 
-# Container logs are capped per service in compose.yaml; this covers anything
-# started outside it.
+# compose.yaml caps logs per service; this covers containers started outside it
 docker_log_max_size: 20m
 docker_log_max_file: "5"

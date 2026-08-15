@@ -1,6 +1,5 @@
 ---
-# Docker's own repository rather than Ubuntu's package: the distro version
-# lags, and compose v2 is only shipped as a plugin upstream.
+# Docker Engine, the Compose plugin and daemon-wide log limits.
 
 - name: 📦 Setup | apt keyring directory
   ansible.builtin.file:
@@ -8,7 +7,7 @@
     state: directory
     mode: "0755"
 
-- name: 🔑 Setup | Docker GPG key
+- name: 📦 Setup | Docker GPG key
   ansible.builtin.get_url:
     url: https://download.docker.com/linux/ubuntu/gpg
     dest: /etc/apt/keyrings/docker.asc
@@ -33,18 +32,6 @@
     state: present
     update_cache: true
 
-- name: ⚙️ Config | Start Docker and enable at boot
-  ansible.builtin.service:
-    name: docker
-    state: started
-    enabled: true
-
-- name: 🔑 Setup | Deploy user in the docker group
-  ansible.builtin.user:
-    name: "{{ deploy_user }}"
-    groups: docker
-    append: true
-
 - name: ⚙️ Config | Cap daemon-wide log size
   ansible.builtin.copy:
     dest: /etc/docker/daemon.json
@@ -58,3 +45,16 @@
         }
       }
   notify: ♻️ Restart | docker
+
+- name: ⚙️ Config | Start Docker and enable at boot
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+# Membership in the docker group is root in practice — only the deploy user has it
+- name: 📦 Setup | Deploy user in the docker group
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    groups: docker
+    append: true

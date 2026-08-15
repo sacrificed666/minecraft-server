@@ -26,6 +26,8 @@
 # ─── Ansible ───
 # inventory.yml is committed on purpose — it holds no secrets
 /ansible/*.retry
+# The key to the vault. group_vars/all/vault.yml is committed; this never is.
+/ansible/.vault-pass
 
 # ─── Tooling and agent state ───
 .claude/

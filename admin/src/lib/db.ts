@@ -1,12 +1,10 @@
 import { Pool } from "pg";
 
 /**
- * Postgres connection pool plus the schema bootstrap.
+ * Postgres pool and the schema bootstrap.
  *
- * One table and no migration framework on purpose — the schema is small enough
- * that CREATE TABLE IF NOT EXISTS on startup is honest and reviewable. Add a
- * real migration tool the moment a column needs changing rather than editing
- * this in place.
+ * One table, no migration framework: CREATE TABLE IF NOT EXISTS on startup is
+ * honest at this size. Add a real migration tool before changing a column.
  */
 
 const globalForPool = globalThis as unknown as { __mcPool?: Pool };

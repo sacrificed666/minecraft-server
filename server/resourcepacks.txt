@@ -1,0 +1,28 @@
+# Resource packs offered on the panel's Looks page.
+#
+# Same as shaders.txt: the panel resolves each slug through Modrinth and offers
+# a download. Packs are dropped into .minecraft/resourcepacks and enabled in
+# Options → Resource Packs.
+#
+# One slug per line, comments on their own line. Checked against 1.21.1.
+
+# ─── Animation ───
+fresh-animations
+fresh-animations-extensions
+tras-fresh-player
+
+# ─── World and blocks ───
+better-leaves
+faithful-64x
+faithful-32x
+
+# ─── Interface ───
+default-dark-mode
+glowing-glints
+enchant-icons-countxd
+even-better-enchants
+enhanced-boss-bars
+
+# ─── Performance and clarity ───
+low-fire-pack
+low-shield-pack

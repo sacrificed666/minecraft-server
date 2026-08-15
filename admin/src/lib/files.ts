@@ -2,9 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 /**
- * Read-only views over the server's own directories. Everything here is
- * derived from files the server writes, so nothing can drift out of sync with
- * what is actually installed or archived.
+ * Read-only views over the server's own directories, so nothing here can drift
+ * out of sync with what is actually installed or archived.
  */
 
 const DATA_DIR = process.env.MC_DATA_DIR ?? "/mcdata";
@@ -64,6 +63,37 @@ export async function tailLog(lines = 200): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+const LIST_DIR = process.env.MODS_LIST_DIR ?? "/extras";
+
+export type DeclaredMod = { slug: string; pin: string | null; client: boolean };
+
+/**
+ * The slugs from mods.txt and client-mods.txt. The jars on disk carry no link
+ * back to Modrinth, so the declared lists are the only way to offer one.
+ */
+export async function listDeclaredMods(): Promise<DeclaredMod[]> {
+  const read = async (file: string, client: boolean): Promise<DeclaredMod[]> => {
+    try {
+      const raw = await fs.readFile(join(LIST_DIR, file), "utf8");
+      return raw
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l && !l.startsWith("#"))
+        .map((entry) => {
+          const [slug, pin] = entry.split(":");
+          return { slug, pin: pin ?? null, client };
+        });
+    } catch {
+      return [];
+    }
+  };
+  const [server, client] = await Promise.all([
+    read("mods.txt", false),
+    read("client-mods.txt", true),
+  ]);
+  return [...server, ...client].sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
 export type ServerProperties = Record<string, string>;

@@ -1,33 +1,9 @@
 ---
-# The deploy user must be able to log in before password auth is disabled,
-# so the key is in place before the SSH policy is written.
+# SSH policy. The common role runs first and installs the deploy user's key —
+# disabling password auth before that would lock the playbook out of the host.
 
-- name: 📦 Setup | Deploy user .ssh directory
-  ansible.builtin.file:
-    path: "/home/{{ deploy_user }}/.ssh"
-    state: directory
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    mode: "0700"
-
-- name: 🔍 Check | Existing authorized_keys
-  ansible.builtin.stat:
-    path: "/home/{{ deploy_user }}/.ssh/authorized_keys"
-  register: deploy_key
-
-- name: 🔑 Setup | Copy the connecting account's keys
-  ansible.builtin.copy:
-    src: "/home/{{ ansible_user }}/.ssh/authorized_keys"
-    dest: "/home/{{ deploy_user }}/.ssh/authorized_keys"
-    remote_src: true
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    mode: "0600"
-  when: not deploy_key.stat.exists
-
-# A drop-in rather than edits to sshd_config: it survives package upgrades,
-# which in-place edits do not. `validate` catches a typo before the file is
-# written, rather than after sshd refuses to restart.
+# A drop-in survives package upgrades, which edits to sshd_config do not.
+# validate catches a typo here rather than after sshd refuses to restart.
 - name: 🔒 Harden | SSH policy
   ansible.builtin.copy:
     dest: /etc/ssh/sshd_config.d/99-hardening.conf
@@ -37,5 +13,5 @@
       PermitRootLogin no
       PasswordAuthentication no
       KbdInteractiveAuthentication no
-      MaxAuthTries {{ ssh_max_auth_tries }}
+      MaxAuthTries {{ hardening_ssh_max_auth_tries }}
   notify: ♻️ Restart | ssh

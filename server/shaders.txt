@@ -1,0 +1,14 @@
+# Shader packs offered on the panel's Looks page.
+#
+# Nothing here touches the server: the panel resolves each slug through the
+# Modrinth API and hands the player a download link. They need Iris, which the
+# player modpack already ships.
+#
+# One slug per line, comments on their own line. Checked against 1.21.1.
+
+complementary-reimagined
+complementary-unbound
+bsl-shaders
+photon-shader
+solas-shader
+bliss-shader

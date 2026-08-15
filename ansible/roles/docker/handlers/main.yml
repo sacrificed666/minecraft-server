@@ -1,4 +1,6 @@
 ---
+# Applies a new daemon.json once the play has finished.
+
 - name: ♻️ Restart | docker
   ansible.builtin.service:
     name: docker

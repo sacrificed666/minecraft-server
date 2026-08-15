@@ -13,10 +13,9 @@ const OPTIONS: { value: Theme; label: string; icon: string }[] = [
 const EVENT = "themechange";
 
 /**
- * The stored theme is applied by a blocking script in the document head, so
- * the first paint is already correct. This component only reflects and edits
- * that state — it subscribes rather than syncing in an effect, which keeps
- * render pure and avoids a second paint.
+ * A blocking script in the head applies the stored theme, so the first paint is
+ * already correct. This only reflects and edits that state, subscribing rather
+ * than syncing in an effect so render stays pure.
  */
 function subscribe(onChange: () => void) {
   window.addEventListener(EVENT, onChange);
@@ -47,7 +46,7 @@ export function ThemeToggle() {
 
   return (
     <div
-      className="flex items-center gap-0.5 rounded-xl border border-[var(--glass-border)] p-0.5"
+      className="flex items-center gap-0.5 rounded-xl border border-(--glass-border) p-0.5"
       role="radiogroup"
       aria-label="Colour theme"
     >
@@ -61,8 +60,8 @@ export function ThemeToggle() {
           onClick={() => choose(o.value)}
           className={`rounded-lg px-2 py-1 text-xs transition-colors ${
             theme === o.value
-              ? "bg-[var(--glass-fill)] text-[var(--ink-primary)]"
-              : "text-[var(--ink-muted)] hover:text-[var(--ink-primary)]"
+              ? "bg-(--glass-fill) text-ink"
+              : "text-ink-muted hover:text-ink"
           }`}
         >
           {o.icon}

@@ -1,4 +1,6 @@
 ---
+# Applies a new SSH policy once the play has finished.
+
 - name: ♻️ Restart | ssh
   ansible.builtin.service:
     name: ssh

@@ -1,9 +1,8 @@
 import http from "node:http";
 
 /**
- * Container CPU/memory via the Docker Engine API over its unix socket.
- * Entirely optional: when the socket is not mounted every call resolves to
- * null and the UI simply hides those readings.
+ * Container CPU and memory over the Docker Engine API. Optional: without the
+ * socket every call resolves to null and the UI hides those readings.
  */
 
 const SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";

@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/guard";
-import { createUser, deleteUser, listUsers, resetPassword, USERNAME_RE } from "@/lib/users";
+import {
+  createUser,
+  deleteUser,
+  ensureAccounts,
+  listUsers,
+  MIN_PASSWORD,
+  resetPassword,
+  USERNAME_RE,
+} from "@/lib/users";
+import { getOps, getWhitelist } from "@/lib/mc";
 import { whitelistAdd, whitelistRemove } from "@/lib/mc";
 
 export const runtime = "nodejs";
@@ -11,6 +20,12 @@ export async function GET() {
   if (denied) return denied;
 
   try {
+    // Anyone the server already trusts gets an account, so the two lists cannot
+    // drift apart just because someone was whitelisted from the shell.
+    const [whitelist, ops] = await Promise.all([getWhitelist(), getOps()]);
+    await ensureAccounts(whitelist.map((p) => p.name));
+    await ensureAccounts(ops.map((p) => p.name), "admin");
+
     return NextResponse.json(
       { users: await listUsers() },
       { headers: { "cache-control": "no-store" } },
@@ -24,9 +39,8 @@ export async function GET() {
 }
 
 /**
- * Creating a user is two things at once: an account on this panel and a
- * whitelist entry on the server. Doing them together is the whole point —
- * "add a player" should not be two tools and a chance to forget one.
+ * Creating a user is two things at once: a panel account and a whitelist entry.
+ * "Add a player" should not be two tools and a chance to forget one.
  */
 export async function POST(request: Request) {
   const { denied } = await requireAdmin();
@@ -114,24 +128,38 @@ export async function DELETE(request: Request) {
   }
 }
 
-/** Password reset — returns the new password once, and never stores it. */
+/**
+ * Sets a password. With no `password` field one is generated; either way the
+ * plaintext is returned once and only a scrypt hash is stored, so an existing
+ * password can never be read back.
+ */
 export async function PATCH(request: Request) {
   const { denied } = await requireAdmin();
   if (denied) return denied;
 
   let id = 0;
+  let chosen: string | undefined;
   try {
     const body = await request.json();
     id = Number(body?.id);
+    if (typeof body?.password === "string" && body.password.length > 0) {
+      chosen = body.password;
+    }
   } catch {
     return NextResponse.json({ error: "Malformed request" }, { status: 400 });
   }
   if (!Number.isInteger(id) || id <= 0) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
+  if (chosen && chosen.length < MIN_PASSWORD) {
+    return NextResponse.json(
+      { error: `Use at least ${MIN_PASSWORD} characters` },
+      { status: 400 },
+    );
+  }
 
   try {
-    const password = await resetPassword(id);
+    const password = await resetPassword(id, chosen);
     if (!password) return NextResponse.json({ error: "No such user" }, { status: 404 });
     return NextResponse.json({ ok: true, password });
   } catch (err) {

@@ -4,7 +4,12 @@
 # ":beta" is required where a project has no release build for 1.21.1.
 #
 # This whole set was boot-tested together on NeoForge 21.1.248 / MC 1.21.1:
-# clean start, no mod errors, 20.0 TPS idle.
+# clean start, no mod errors, 20.0 TPS idle in all three dimensions.
+#
+# Almost nothing here is pinned, so Modrinth will hand you newer builds than the
+# ones that were tested, and two of them have already broken this file once.
+# Boot the server after every change — a version conflict aborts mod loading
+# outright, it does not degrade quietly.
 
 # ─── Core ───
 create
@@ -25,6 +30,10 @@ create-pattern-schematics
 create-ore-excavation
 create-enchantment-industry
 slice-and-dice
+power-grid
+create-alloyed
+create-sifting:beta
+createnuclear:beta
 
 # ─── Create: transport and combat ───
 create-aeronautics
@@ -33,6 +42,10 @@ create-railways-navigator:beta
 dragonlib:beta
 create-jetpack
 create-radars
+create-steam-n-rails-1.21.1
+blocks-bogies
+create-threaded-trains
+hypertube
 
 # ─── Create: building and decoration ───
 copycats
@@ -58,17 +71,31 @@ create-dreams-and-desires
 create-dragons-plus
 create-trading-floor
 numismatics
-create-bits-n-bobs
+create-bitterballen
+farmers-delight
+delightful-creators
 create-goggles:beta
 
 # ─── Performance ───
 ferrite-core
 lithium
 modernfix
+clumps
+
+# ─── Client: interface and quality of life ───
+jei:beta
+jade
+appleskin
+shulkerboxtooltip
+enchantment-descriptions
+
+# ─── Multiplayer ───
+simple-voice-chat
+what-are-they-up-to
+journeymap
+no-chat-reports
 
 # ─── Server tools ───
 spark
 chunky
-# bluemap: 3D web map. Needs accept-download=true in server/bluemap/core.conf,
-# which is mounted in — without it BlueMap silently renders nothing.
 bluemap

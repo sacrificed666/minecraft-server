@@ -2,32 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { GlassCard, CardHeader } from "@/components/GlassCard";
-import { ConsolePanel } from "@/components/ConsolePanel";
+import { ConsolePanel } from "./ConsolePanel";
+import { usePolled } from "@/lib/polling";
+import type { LogsResponse } from "@/lib/api";
 
 export default function ConsolePage() {
-  const [lines, setLines] = useState<string[] | null>(null);
+  const { data } = usePolled<LogsResponse>("/api/logs", 5000);
   const [follow, setFollow] = useState(true);
   const logRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      try {
-        const res = await fetch("/api/logs", { cache: "no-store" });
-        const data = await res.json();
-        if (!alive) return;
-        setLines(data.lines ?? []);
-      } catch {
-        /* keep the previous lines */
-      }
-    };
-    void load();
-    const timer = setInterval(load, 5000);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, []);
+  const lines = data?.lines ?? null;
 
   useEffect(() => {
     if (follow && logRef.current) {
@@ -44,12 +27,12 @@ export default function ConsolePage() {
           title="Server log"
           hint="latest.log, refreshed every 5s"
           right={
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-[var(--ink-secondary)]">
+            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-ink-secondary">
               <input
                 type="checkbox"
                 checked={follow}
                 onChange={(e) => setFollow(e.target.checked)}
-                className="accent-[var(--series-tps)]"
+                className="accent-(--series-tps)"
               />
               Follow
             </label>
@@ -57,12 +40,12 @@ export default function ConsolePage() {
         />
         <div
           ref={logRef}
-          className="mx-3 mb-3 h-[26rem] overflow-auto rounded-xl bg-[var(--glass-fill-2)] p-3 font-mono text-[11px] leading-relaxed"
+          className="mx-3 mb-3 h-104 overflow-auto rounded-xl bg-(--glass-inset) p-3 font-mono text-[11px] leading-relaxed"
           role="log"
         >
-          {lines === null && <p className="text-[var(--ink-muted)]">Loading…</p>}
+          {lines === null && <p className="text-ink-muted">Loading…</p>}
           {lines?.length === 0 && (
-            <p className="text-[var(--ink-muted)]">
+            <p className="text-ink-muted">
               No log yet — the server may still be starting.
             </p>
           )}

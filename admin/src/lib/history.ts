@@ -4,9 +4,8 @@ import { getContainerStats } from "./docker";
 /**
  * In-memory time series for the dashboard charts.
  *
- * Deliberately not persisted: the panel shows a live window, and a restart
- * losing an hour of samples is cheaper than owning a database. Long-term
- * profiling is spark's job, in game.
+ * Not persisted: losing an hour of samples on restart is cheaper than owning a
+ * time-series database. Long-term profiling is spark's job, in game.
  */
 
 export type Sample = {

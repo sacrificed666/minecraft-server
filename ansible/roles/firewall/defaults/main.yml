@@ -1,4 +1,10 @@
 ---
-# 25565 is the game, 80 and 443 are Traefik. RCON, the panel and the map are
+# Everything the internet is allowed to reach. RCON, the panel and the map are
 # bound to loopback in compose.yaml and are never opened here.
-open_ports: [25565, 80, 443]
+# SSH is added separately, from ansible_port.
+
+firewall_open_ports:
+  - 25565/tcp # the game
+  - 24454/udp # Simple Voice Chat
+  - 80/tcp # Traefik, redirects to 443
+  - 443/tcp # Traefik

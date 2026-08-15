@@ -25,6 +25,8 @@ export function LineChart({
   unit = "",
   height = 168,
 }: Props) {
+  // Shorter on phones: at 390px a 168px chart pushes everything below the fold
+  const [chartHeight, setChartHeight] = useState(height);
   const hostRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
@@ -33,12 +35,13 @@ export function LineChart({
   useEffect(() => {
     const el = hostRef.current;
     if (!el) return;
-    const observer = new ResizeObserver(([entry]) =>
-      setWidth(entry.contentRect.width),
-    );
+    const observer = new ResizeObserver(([entry]) => {
+      setWidth(entry.contentRect.width);
+      setChartHeight(entry.contentRect.width < 480 ? Math.round(height * 0.78) : height);
+    });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [height]);
 
   const points = useMemo(() => data.filter((d) => d.v !== null), [data]);
 
@@ -54,7 +57,7 @@ export function LineChart({
   }, [points, domain]);
 
   const plotW = Math.max(0, width - PAD.left - PAD.right);
-  const plotH = height - PAD.top - PAD.bottom;
+  const plotH = chartHeight - PAD.top - PAD.bottom;
 
   const x = (i: number) =>
     PAD.left + (data.length <= 1 ? plotW : (i / (data.length - 1)) * plotW);
@@ -89,7 +92,7 @@ export function LineChart({
         : "";
     return { linePath: line, areaPath: area };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, width, height, min, max]);
+  }, [data, width, chartHeight, min, max]);
 
   const latest = points.at(-1)?.v ?? null;
   // useId keeps the gradient reference stable and unique across instances
@@ -110,8 +113,8 @@ export function LineChart({
     return (
       <div
         ref={hostRef}
-        style={{ height }}
-        className="flex items-center justify-center px-5 pb-4 text-xs text-[var(--ink-muted)]"
+        style={{ height: chartHeight }}
+        className="flex items-center justify-center px-5 pb-4 text-xs text-ink-muted"
       >
         Waiting for the first samples…
       </div>
@@ -122,7 +125,7 @@ export function LineChart({
     <div ref={hostRef} className="relative px-2 pb-2">
       <svg
         width={width || "100%"}
-        height={height}
+        height={chartHeight}
         role="img"
         aria-label={`Time series, latest value ${latest !== null ? format(latest) : "unknown"}`}
         onPointerMove={handleMove}
@@ -131,7 +134,7 @@ export function LineChart({
       >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+            <stop offset="0%" stopColor={color} stopOpacity="0.16" />
             <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
         </defs>
@@ -218,17 +221,17 @@ export function LineChart({
 
       {hovered && hovered.v !== null && width > 0 && (
         <div
-          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-[var(--glass-border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs shadow-lg"
+          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-lg border border-(--glass-border) bg-surface px-2.5 py-1.5 text-xs shadow-lg"
           style={{
             left: Math.min(Math.max(x(hoverIndex!), 54), width - 54),
             top: 0,
           }}
         >
-          <div className="font-semibold text-[var(--ink-primary)] tabular-nums">
+          <div className="font-semibold text-ink tabular-nums">
             {format(hovered.v)}
             {unit}
           </div>
-          <div className="text-[10px] text-[var(--ink-muted)] tabular-nums">
+          <div className="text-[10px] text-ink-muted tabular-nums">
             {new Date(hovered.t).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",

@@ -18,12 +18,12 @@ export function StatTile({
   return (
     <div
       className="glass glass-hover rise p-5"
-      style={{ animationDelay: `${delay * 70}ms` }}
+      style={{ animationDelay: `${Math.min(delay, 6) * 45}ms` }}
     >
-      <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-[var(--ink-secondary)] uppercase">
+      <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-ink-secondary uppercase">
         {accent && (
           <span
-            className="size-2 rounded-[2px]"
+            className="size-2 rounded-xs"
             style={{ background: accent }}
             aria-hidden="true"
           />
@@ -31,24 +31,22 @@ export function StatTile({
         {label}
       </div>
       <div className="mt-2 flex items-baseline gap-1">
-        <span className="text-3xl font-semibold tracking-tight text-[var(--ink-primary)]">
+        <span key={value} className="value-in text-3xl font-semibold tracking-tight text-ink">
           {value}
         </span>
         {suffix && (
-          <span className="text-sm text-[var(--ink-muted)]">{suffix}</span>
+          <span className="text-sm text-ink-muted">{suffix}</span>
         )}
       </div>
-      {detail && <div className="mt-1 text-xs text-[var(--ink-muted)]">{detail}</div>}
+      {detail && <div className="mt-1 text-xs text-ink-muted">{detail}</div>}
     </div>
   );
 }
 
 /**
- * A ratio against a fixed limit — the right form for memory.
- *
- * The JVM runs with Aikar's flags, which include AlwaysPreTouch: the whole heap
- * is committed at startup, so container memory sits flat near the limit forever.
- * Plotted over time that line says nothing; as a meter it still shows headroom.
+ * A ratio against a fixed limit — the right form for memory. Aikar's flags
+ * include AlwaysPreTouch, so the heap is committed at startup and a time series
+ * would be flat forever; a meter still shows headroom.
  */
 export function Meter({
   used,
@@ -71,22 +69,22 @@ export function Meter({
   return (
     <div
       className="glass glass-hover rise p-5"
-      style={{ animationDelay: `${delay * 70}ms` }}
+      style={{ animationDelay: `${Math.min(delay, 6) * 45}ms` }}
     >
-      <div className="flex items-center justify-between text-xs font-medium tracking-wide text-[var(--ink-secondary)] uppercase">
+      <div className="flex items-center justify-between text-xs font-medium tracking-wide text-ink-secondary uppercase">
         <span>{label}</span>
-        <span className="tabular-nums text-[var(--ink-muted)] normal-case">
+        <span className="tabular-nums text-ink-muted normal-case">
           {percent}%
         </span>
       </div>
       <div className="mt-2 flex items-baseline gap-1">
-        <span className="text-3xl font-semibold tracking-tight text-[var(--ink-primary)]">
+        <span key={format(used)} className="value-in text-3xl font-semibold tracking-tight text-ink">
           {format(used)}
         </span>
-        <span className="text-sm text-[var(--ink-muted)]">/ {format(limit)}</span>
+        <span className="text-sm text-ink-muted">/ {format(limit)}</span>
       </div>
       <div
-        className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--grid)]"
+        className="mt-3 h-2 overflow-hidden rounded-full bg-(--grid)"
         role="meter"
         aria-valuenow={percent}
         aria-valuemin={0}
@@ -105,7 +103,7 @@ export function Meter({
 export function StatusPill({ online }: { online: boolean }) {
   return (
     <span
-      className="inline-flex items-center gap-2 rounded-full border border-[var(--glass-border)] px-3 py-1 text-xs font-medium"
+      className="inline-flex items-center gap-2 rounded-full border border-(--glass-border) px-3 py-1 text-xs font-medium"
       style={{ color: online ? "var(--good)" : "var(--critical)" }}
     >
       <span

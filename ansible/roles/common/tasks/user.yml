@@ -1,0 +1,43 @@
+---
+# The account the deployment runs as, its key, and the limits Minecraft needs.
+
+- name: 📦 Setup | Deploy user
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    home: "{{ common_deploy_home }}"
+    shell: /bin/bash
+    create_home: true
+    state: present
+
+- name: 📦 Setup | SSH directory
+  ansible.builtin.file:
+    path: "{{ common_deploy_home }}/.ssh"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0700"
+
+# Read rather than assumed: the connecting account's home is not always /home/<name>
+- name: 🔍 Check | Home of the connecting account
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ ansible_user }}"
+
+# Must land before hardening disables passwords; force=false keeps manual keys
+- name: 📦 Setup | Authorised keys
+  ansible.builtin.copy:
+    src: "{{ getent_passwd[ansible_user][4] }}/.ssh/authorized_keys"
+    dest: "{{ common_deploy_home }}/.ssh/authorized_keys"
+    remote_src: true
+    force: false
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+
+- name: ⚙️ Config | File descriptor limits
+  ansible.builtin.copy:
+    dest: /etc/security/limits.d/99-minecraft.conf
+    mode: "0644"
+    content: |
+      {{ deploy_user }} soft nofile {{ common_nofile_limit }}
+      {{ deploy_user }} hard nofile {{ common_nofile_limit }}

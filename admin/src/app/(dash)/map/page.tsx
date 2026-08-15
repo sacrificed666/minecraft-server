@@ -1,24 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { GlassCard, CardHeader } from "@/components/GlassCard";
+import { usePolled } from "@/lib/polling";
+import type { ServerResponse } from "@/lib/api";
 
 export default function MapPage() {
-  const [mapUrl, setMapUrl] = useState<string | null>(null);
+  const { data: info } = usePolled<ServerResponse>("/api/server");
   const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/server")
-      .then((r) => r.json())
-      .then((d) => setMapUrl(d.mapUrl || null))
-      .catch(() => setMapUrl(null));
-  }, []);
+  /*
+   * MAP_URL is the public address Traefik serves, which only resolves from the
+   * internet. Opened over loopback — an SSH tunnel, or the stack on your own
+   * machine — that domain is not this server, so fall back to the port BlueMap
+   * is published on. Computed after mount: it depends on the browser's URL.
+   */
+  const mapUrl = useMemo(() => {
+    if (!info) return null;                       // server render: no iframe yet
+    const host = window.location.hostname;
+    const loopback = host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+    return loopback ? `http://${host}:${info.mapPort}` : info.mapUrl || null;
+  }, [info]);
 
-  if (mapUrl === null) {
+  if (info && mapUrl === null) {
     return (
       <GlassCard>
         <CardHeader title="Map" />
-        <p className="px-5 pb-5 text-sm text-[var(--ink-muted)]">
+        <p className="px-5 pb-5 text-sm text-ink-muted">
           No map URL configured. Set <code className="font-mono">MAP_HOST</code>{" "}
           in <code className="font-mono">.env</code> and restart the panel.
         </p>
@@ -34,37 +42,41 @@ export default function MapPage() {
           hint="Rendered by BlueMap from the actual world data"
           accent="var(--series-players)"
           right={
-            <a
-              href={mapUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-xl border border-[var(--glass-border)] px-3 py-1.5 text-xs font-medium transition-transform hover:scale-105"
-            >
-              Open full screen ↗
-            </a>
+            mapUrl && (
+              <a
+                href={mapUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-xl border border-(--glass-border) px-3 py-1.5 text-xs font-medium transition-transform hover:scale-105"
+              >
+                Open full screen ↗
+              </a>
+            )
           }
         />
-        <div className="relative mx-3 mb-3 h-[70vh] overflow-hidden rounded-xl bg-[var(--glass-fill-2)]">
+        <div className="relative mx-3 mb-3 h-[70vh] overflow-hidden rounded-xl bg-(--glass-inset)">
           {!ready && (
-            <div className="absolute inset-0 grid place-items-center text-sm text-[var(--ink-muted)]">
+            <div className="absolute inset-0 grid place-items-center text-sm text-ink-muted">
               Loading the map…
             </div>
           )}
-          <iframe
-            src={mapUrl}
-            title="BlueMap"
-            className="size-full border-0"
-            onLoad={() => setReady(true)}
-            // The map is a separate origin behind the same proxy; it needs no
-            // access to this page, so keep the sandbox tight.
-            sandbox="allow-scripts allow-same-origin allow-popups"
-          />
+          {mapUrl && (
+            <iframe
+              src={mapUrl}
+              title="BlueMap"
+              className="size-full border-0"
+              onLoad={() => setReady(true)}
+              // Separate origin behind the same proxy; it needs no access to
+              // this page, so keep the sandbox tight.
+              sandbox="allow-scripts allow-same-origin allow-popups"
+            />
+          )}
         </div>
       </GlassCard>
 
       <GlassCard delay={1}>
         <CardHeader title="About the render" />
-        <div className="space-y-2 px-5 pb-5 text-sm text-[var(--ink-secondary)]">
+        <div className="space-y-2 px-5 pb-5 text-sm text-ink-secondary">
           <p>
             BlueMap renders in the background and keeps up with changes as
             players explore. The first full render of an existing world takes a
@@ -72,7 +84,7 @@ export default function MapPage() {
             at two threads in{" "}
             <code className="font-mono text-xs">server/bluemap/core.conf</code>.
           </p>
-          <p className="text-[var(--ink-muted)]">
+          <p className="text-ink-muted">
             Its output is excluded from backups — it is large and fully
             regenerable from the world itself.
           </p>

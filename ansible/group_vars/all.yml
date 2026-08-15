@@ -1,8 +1,0 @@
----
-# Values shared by every host. Anything secret stays on the server — the
-# playbook generates it there with `make init` and never reads it back.
-#
-# Role defaults cover the rest; override them here or per host in the inventory.
-
-timezone: Europe/Kyiv
-deploy_user: mc

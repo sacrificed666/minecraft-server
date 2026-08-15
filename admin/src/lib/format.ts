@@ -1,3 +1,5 @@
+/** Number and time formatting shared by the pages. No React, no I/O. */
+
 export function bytes(value: number): string {
   if (value < 1024) return `${value} B`;
   const units = ["KB", "MB", "GB", "TB"];

@@ -1,10 +1,8 @@
 import net from "node:net";
 
 /**
- * Minimal Source RCON client.
- *
- * Written rather than pulled in as a dependency: the protocol is four fields
- * wide, and the panel needs precise control over multi-packet reassembly.
+ * Minimal Source RCON client. Written rather than pulled in: the protocol is
+ * four fields wide and multi-packet replies need explicit reassembly.
  *
  * Packet: int32 LE length | int32 LE id | int32 LE type | body\0 | \0
  */

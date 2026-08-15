@@ -82,9 +82,8 @@ export async function fetchStatus(): Promise<ServerStatus> {
 }
 
 /**
- * Reads whitelist.json / ops.json straight off the server's data directory.
- * The files are authoritative and structured; parsing `/whitelist list` output
- * would be fragile and would not carry UUIDs.
+ * Reads whitelist.json / ops.json off the data directory: authoritative and
+ * structured, where parsing `/whitelist list` would lose the UUIDs.
  */
 async function readPlayerFile(file: string): Promise<PlayerEntry[]> {
   try {

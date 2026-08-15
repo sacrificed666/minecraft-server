@@ -1,2 +1,4 @@
 ---
-ssh_max_auth_tries: 3
+# SSH policy, applied as a drop-in.
+
+hardening_ssh_max_auth_tries: 3

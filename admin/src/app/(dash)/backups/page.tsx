@@ -1,25 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { GlassCard, CardHeader } from "@/components/GlassCard";
-import { bytes, relativeTime } from "@/components/format";
-
-type Backup = { name: string; bytes: number; modified: number };
+import { usePolled } from "@/lib/polling";
+import { bytes, relativeTime } from "@/lib/format";
+import type { BackupsResponse } from "@/lib/api";
 
 export default function BackupsPage() {
-  const [backups, setBackups] = useState<Backup[] | null>(null);
-
-  useEffect(() => {
-    const load = () =>
-      fetch("/api/backups", { cache: "no-store" })
-        .then((r) => r.json())
-        .then((d) => setBackups(d.backups ?? []))
-        .catch(() => setBackups([]));
-    void load();
-    const timer = setInterval(load, 60_000);
-    return () => clearInterval(timer);
-  }, []);
-
+  const { data } = usePolled<BackupsResponse>("/api/backups", 60_000);
+  const backups = data?.backups ?? null;
   const total = backups?.reduce((sum, b) => sum + b.bytes, 0) ?? 0;
 
   return (
@@ -31,7 +19,7 @@ export default function BackupsPage() {
           accent="var(--series-tps)"
           right={
             backups && (
-              <span className="rounded-full border border-[var(--glass-border)] px-2.5 py-0.5 text-xs tabular-nums text-[var(--ink-secondary)]">
+              <span className="rounded-full border border-(--glass-border) px-2.5 py-0.5 text-xs tabular-nums text-ink-secondary">
                 {backups.length} · {bytes(total)}
               </span>
             )
@@ -45,10 +33,10 @@ export default function BackupsPage() {
             ))}
 
           {backups?.length === 0 && (
-            <p className="px-2 py-4 text-sm text-[var(--ink-muted)]">
-              No archives yet. The first one runs 5 minutes after start, then
-              every 6 hours — and is skipped entirely when nobody has been
-              online since the last one.
+            <p className="px-2 py-4 text-sm text-ink-muted">
+              No archives yet. Backups run nightly at midnight, on the schedule in{" "}
+              <code className="font-mono">BACKUP_CRON</code>, and the three most
+              recent are kept.
             </p>
           )}
 
@@ -56,15 +44,15 @@ export default function BackupsPage() {
             {backups?.map((b) => (
               <li
                 key={b.name}
-                className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-[var(--glass-fill-2)]"
+                className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-(--glass-inset)"
               >
                 <span className="min-w-0">
                   <span className="block truncate font-mono text-xs">{b.name}</span>
-                  <span className="text-[11px] text-[var(--ink-muted)]">
+                  <span className="text-[11px] text-ink-muted">
                     {new Date(b.modified).toLocaleString()} · {relativeTime(b.modified)}
                   </span>
                 </span>
-                <span className="shrink-0 text-sm tabular-nums text-[var(--ink-secondary)]">
+                <span className="shrink-0 text-sm tabular-nums text-ink-secondary">
                   {bytes(b.bytes)}
                 </span>
               </li>
@@ -75,12 +63,12 @@ export default function BackupsPage() {
 
       <GlassCard delay={1}>
         <CardHeader title="Restoring" />
-        <div className="space-y-3 px-5 pb-5 text-sm text-[var(--ink-secondary)]">
+        <div className="space-y-3 px-5 pb-5 text-sm text-ink-secondary">
           <p>
             Restoring replaces the live world, so it is deliberately a shell
             operation rather than a button here:
           </p>
-          <pre className="overflow-x-auto rounded-xl bg-[var(--glass-fill-2)] p-3 font-mono text-xs">
+          <pre className="overflow-x-auto rounded-xl bg-(--glass-inset) p-3 font-mono text-xs">
 {`make backups
 make restore F=server/backups/<archive>.tar.gz`}
           </pre>
@@ -88,7 +76,7 @@ make restore F=server/backups/<archive>.tar.gz`}
             It asks for confirmation, stops the server, moves the current world
             aside rather than deleting it, then starts back up.
           </p>
-          <p className="text-[var(--ink-muted)]">
+          <p className="text-ink-muted">
             These archives sit on the same disk as the server. That covers a
             corrupted world or a bad mod update — not losing the host. Sync them
             off-site as well.

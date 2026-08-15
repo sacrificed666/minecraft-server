@@ -1,44 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { GlassCard, CardHeader } from "@/components/GlassCard";
-import { LineChart, type Point } from "@/components/LineChart";
+import { LineChart, type Point } from "@/components/charts/LineChart";
 import { Meter, StatTile } from "@/components/StatTile";
 import { PlayerAvatar } from "@/components/PlayerAvatar";
-import { useMetrics, POLL_MS } from "@/components/MetricsProvider";
-import { bytes } from "@/components/format";
+import { useMetrics, POLL_MS } from "@/components/providers/MetricsProvider";
 import { Uptime } from "@/components/Uptime";
-import { QuickActions } from "@/components/QuickActions";
-
-type ServerInfo = {
-  properties: Record<string, string>;
-  worldBytes: number | null;
-  ops: { uuid: string; name: string }[];
-  startedAt: number | null;
-  serverHost: string;
-};
+import { useToast } from "@/components/Toast";
+import { usePolled } from "@/lib/polling";
+import { bytes } from "@/lib/format";
+import type { ServerResponse } from "@/lib/api";
 
 export default function OverviewPage() {
-  const { snap } = useMetrics();
-  const [info, setInfo] = useState<ServerInfo | null>(null);
-
-  useEffect(() => {
-    const load = () =>
-      fetch("/api/server")
-        .then((r) => r.json())
-        .then(setInfo)
-        .catch(() => {});
-    void load();
-    // World size and uptime move slowly; no need to poll them at chart speed
-    const timer = setInterval(load, 60_000);
-    return () => clearInterval(timer);
-  }, []);
+  const toast = useToast();
+  const { data: snap } = useMetrics();
+  // World size and uptime move slowly; no need to poll them at chart speed
+  const { data: info } = usePolled<ServerResponse>("/api/server", 60_000);
 
   const history = snap?.history ?? [];
   const tps: Point[] = history.map((s) => ({ t: s.t, v: s.tps }));
   const players: Point[] = history.map((s) => ({ t: s.t, v: s.players }));
   const cpu: Point[] = history.map((s) => ({ t: s.t, v: s.cpu }));
   const hasCpu = cpu.some((p) => p.v !== null);
+
+  // [0,20] made a dip to 18 two pixels tall. Frame the samples instead, keeping
+  // 20 in view so full speed stays the ceiling you read against.
+  const tpsValues = tps.map((p) => p.v).filter((v): v is number => v !== null);
+  const tpsFloor = tpsValues.length ? Math.max(0, Math.min(...tpsValues) - 1) : 0;
 
   return (
     <div className="space-y-4">
@@ -49,7 +37,7 @@ export default function OverviewPage() {
           role="alert"
         >
           <strong className="font-semibold">Server unreachable.</strong>{" "}
-          <span className="text-[var(--ink-secondary)]">{snap.error}</span>
+          <span className="text-ink-secondary">{snap.error}</span>
         </div>
       )}
 
@@ -101,14 +89,19 @@ export default function OverviewPage() {
         )}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid items-start gap-4 xl:grid-cols-2">
         <GlassCard delay={4}>
           <CardHeader
             title="Ticks per second"
             hint="20 is full speed; sustained dips mean the tick is overloaded"
             accent="var(--series-tps)"
           />
-          <LineChart data={tps} color="var(--series-tps)" domain={[0, 20]} format={(v) => v.toFixed(0)} />
+          <LineChart
+            data={tps}
+            color="var(--series-tps)"
+            domain={[tpsFloor, 20]}
+            format={(v) => (v % 1 ? v.toFixed(1) : v.toFixed(0))}
+          />
         </GlassCard>
 
         <GlassCard delay={5}>
@@ -137,10 +130,8 @@ export default function OverviewPage() {
         </GlassCard>
       )}
 
-      <QuickActions delay={7} />
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <GlassCard delay={8}>
+      <div className="grid items-start gap-4 xl:grid-cols-2">
+        <GlassCard delay={7}>
           <CardHeader title="Online now" accent="var(--series-players)" />
           <div className="px-5 pb-5">
             {snap?.players.names.length ? (
@@ -148,7 +139,7 @@ export default function OverviewPage() {
                 {snap.players.names.map((n) => (
                   <li
                     key={n}
-                    className="flex items-center gap-2 rounded-xl border border-[var(--glass-border)] px-2.5 py-1.5 text-sm"
+                    className="flex items-center gap-2 rounded-xl border border-(--glass-border) px-2.5 py-1.5 text-sm"
                   >
                     <PlayerAvatar seed={n} size={20} />
                     {n}
@@ -156,21 +147,39 @@ export default function OverviewPage() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-[var(--ink-muted)]">Nobody is online.</p>
+              <p className="text-sm text-ink-muted">Nobody is online.</p>
             )}
           </div>
         </GlassCard>
 
-        <GlassCard delay={9}>
+        <GlassCard delay={8}>
           <CardHeader title="Server" />
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 px-5 pb-5 text-sm">
             <div className="contents">
-              <dt className="text-[var(--ink-muted)]">Uptime</dt>
+              <dt className="text-ink-muted">Uptime</dt>
               <dd className="truncate text-right font-medium tabular-nums">
                 <Uptime startedAt={info?.startedAt ?? null} />
               </dd>
             </div>
-            <Row label="Address" value={info?.serverHost || "—"} />
+            <div className="contents">
+              <dt className="text-ink-muted">Address</dt>
+              <dd className="truncate text-right font-medium tabular-nums">
+                {info?.serverHost ? (
+                  <button
+                    onClick={() => {
+                      void navigator.clipboard.writeText(info.serverHost);
+                      toast("ok", "Address copied");
+                    }}
+                    className="rounded-md px-1 transition-colors hover:text-(--series-tps)"
+                    title="Copy the address players connect to"
+                  >
+                    {info.serverHost} ⧉
+                  </button>
+                ) : (
+                  "—"
+                )}
+              </dd>
+            </div>
             <Row label="World size" value={info?.worldBytes != null ? bytes(info.worldBytes) : "—"} />
             <Row label="World" value={info?.properties.levelName || "—"} />
             <Row label="Seed" value={info?.properties.levelSeed || "random"} />
@@ -181,12 +190,12 @@ export default function OverviewPage() {
       </div>
 
       {snap && snap.perDimensionTps.length > 0 && (
-        <GlassCard delay={10}>
+        <GlassCard delay={9}>
           <CardHeader title="Tick rate by dimension" hint="Where the tick budget goes" />
           <div className="overflow-x-auto px-5 pb-5">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs text-[var(--ink-muted)] uppercase">
+                <tr className="text-left text-xs text-ink-muted uppercase">
                   <th className="py-2 font-medium">Dimension</th>
                   <th className="py-2 text-right font-medium">TPS</th>
                   <th className="py-2 text-right font-medium">ms / tick</th>
@@ -194,10 +203,10 @@ export default function OverviewPage() {
               </thead>
               <tbody>
                 {snap.perDimensionTps.map((d) => (
-                  <tr key={d.dimension} className="border-t border-[var(--glass-border)]">
+                  <tr key={d.dimension} className="border-t border-(--glass-border)">
                     <td className="py-2">{d.dimension}</td>
                     <td className="py-2 text-right tabular-nums">{d.tps.toFixed(2)}</td>
-                    <td className="py-2 text-right tabular-nums text-[var(--ink-secondary)]">
+                    <td className="py-2 text-right tabular-nums text-ink-secondary">
                       {d.msPerTick.toFixed(2)}
                     </td>
                   </tr>
@@ -214,7 +223,7 @@ export default function OverviewPage() {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <>
-      <dt className="text-[var(--ink-muted)]">{label}</dt>
+      <dt className="text-ink-muted">{label}</dt>
       <dd className="truncate text-right font-medium tabular-nums">{value}</dd>
     </>
   );
