@@ -3,6 +3,7 @@
 
 # A first boot takes 5-15 minutes; the tasks below need a running server.
 - name: 🔍 Check | Wait for the server to finish booting
+  become: true
   become_user: "{{ deploy_user }}"
   ansible.builtin.command: docker inspect --format {{ '{{.State.Health.Status}}' }} minecraft
   register: minecraft_boot
@@ -13,6 +14,7 @@
 
 # The seeded ids are Mojang's; an offline client presents name-derived ones.
 - name: ⚙️ Config | Offline-mode UUIDs
+  become: true
   become_user: "{{ deploy_user }}"
   ansible.builtin.command: make offline-ids
   args:
@@ -27,6 +29,7 @@
 
 # The mods only exist after a first boot, so this must not fail the deployment
 - name: 🎁 Build | Player modpack
+  become: true
   become_user: "{{ deploy_user }}"
   ansible.builtin.command: make modpack
   args:

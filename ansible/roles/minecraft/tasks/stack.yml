@@ -3,6 +3,7 @@
 
 # Docker would create these as root, leaving /data/config unwritable for the server.
 - name: 📦 Setup | Directories the config mounts land in
+  become: true
   become_user: "{{ deploy_user }}"
   ansible.builtin.file:
     path: "{{ deploy_path }}/server/data/config/{{ item }}"
@@ -10,7 +11,19 @@
     mode: "0755"
   loop: [bluemap, chunky]
 
+# Mounted as a file so the panel can write it; without this Docker invents a
+# directory of the same name and the server starts with no whitelist at all.
+- name: 📦 Setup | Whitelist the panel writes
+  become: true
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.copy:
+    dest: "{{ deploy_path }}/server/data/whitelist.json"
+    content: "[]"
+    force: false
+    mode: "0664"
+
 - name: 🚀 Deploy | Start the stack
+  become: true
   become_user: "{{ deploy_user }}"
   ansible.builtin.command: docker compose up -d --build
   args:
@@ -19,6 +32,7 @@
   changed_when: "'Started' in minecraft_compose.stderr or 'Created' in minecraft_compose.stderr"
 
 - name: 🚀 Deploy | Start Traefik
+  become: true
   become_user: "{{ deploy_user }}"
   ansible.builtin.command: docker compose --profile proxy up -d proxy
   args:

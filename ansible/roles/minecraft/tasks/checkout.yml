@@ -17,6 +17,7 @@
 
 # force discards local edits to tracked files; .env and server/ are git-ignored
 - name: 🚀 Deploy | Check out the repository
+  become: true
   become_user: "{{ deploy_user }}"
   ansible.builtin.git:
     repo: "{{ deploy_repo }}"
@@ -30,6 +31,7 @@
   register: minecraft_env_file
 
 - name: 📦 Setup | Generate .env secrets on first deploy
+  become: true
   become_user: "{{ deploy_user }}"
   ansible.builtin.command: make init
   args:
@@ -38,6 +40,7 @@
   changed_when: true
 
 - name: ⚙️ Config | Hostnames and gameplay overrides
+  become: true
   become_user: "{{ deploy_user }}"
   ansible.builtin.lineinfile:
     path: "{{ deploy_path }}/.env"
