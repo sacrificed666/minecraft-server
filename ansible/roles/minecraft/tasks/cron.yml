@@ -1,7 +1,5 @@
 ---
-# BlueMap competes with the server tick, so the maps stay frozen while people
-# play and catch up in one window overnight. The host clock is {{ timezone }},
-# set by the common role, so these times are local ones.
+# The nightly map window. Times are the host clock, set by the common role.
 
 # /var/log is root-owned, so the jobs cannot create their own log
 - name: 📦 Setup | Cron log

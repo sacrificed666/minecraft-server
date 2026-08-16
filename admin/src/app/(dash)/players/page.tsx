@@ -11,11 +11,7 @@ import { relativeTime } from "@/lib/format";
 import type { PlayerEntry } from "@/lib/mc";
 import type { User } from "@/lib/users";
 
-/**
- * One person, assembled from three sources that used to have their own pages:
- * the whitelist file, the accounts table, and who is connected right now.
- * Keeping them apart made the admin do the join in their head.
- */
+// One person, merged from the whitelist file, the accounts table and who is online.
 type Person = {
   name: string;
   account: User | null;
@@ -37,13 +33,11 @@ export default function PlayersPage() {
   const [dbError, setDbError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  // An existing password cannot be read back, so "see their password" is served
-  // by letting the admin set one they choose.
+  // Passwords are scrypt hashes, so the admin sets a new one rather than reading it.
   const [editing, setEditing] = useState<{ id: number; name: string } | null>(null);
   const [chosen, setChosen] = useState("");
 
-  // Hand-rolled rather than usePolled: every mutation below has to re-read all
-  // three sources, and a partial failure must not blank the ones that worked.
+  // Hand-rolled: a partial failure must not blank the sources that did answer.
   const refresh = useCallback(async () => {
     const [u, w, s] = await Promise.allSettled([
       fetch("/api/users", { cache: "no-store" }).then(async (r) => ({
@@ -67,8 +61,7 @@ export default function PlayersPage() {
   }, []);
 
   useEffect(() => {
-    // Wrapped so the state updates land in a microtask rather than
-    // synchronously inside the effect body.
+    // Wrapped so the state updates land in a microtask, not inside the effect body.
     void (async () => {
       await refresh();
     })();

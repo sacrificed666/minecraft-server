@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
 
-// next/font downloads at build time and self-hosts the result, so the running
-// page makes no request to Google and needs no CSP exception.
+// Self-hosted at build time, so the page needs no CSP exception for Google.
 const montserrat = Montserrat({
   variable: "--font-montserrat",
   subsets: ["latin", "cyrillic"],

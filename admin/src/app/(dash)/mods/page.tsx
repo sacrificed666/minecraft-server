@@ -12,14 +12,7 @@ import type { ModProject } from "@/lib/modrinth";
 
 const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-/**
- * Pairs each declared mod with the jar it resolved to.
- *
- * Jars carry no slug, so the match is by name: longest slug first, or "create"
- * claims every "create-*" jar before they get a turn. It is a guess — plenty of
- * jars are named after the mod id, not the slug — so an unmatched mod shows no
- * file rather than claiming it is missing.
- */
+// Pairs each declared mod with the jar it resolved to.
 function pair(projects: ModProject[], jars: ModFile[]) {
   const byLength = [...projects].sort((a, b) => b.slug.length - a.slug.length);
   const taken = new Map<string, ModFile>();

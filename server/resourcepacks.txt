@@ -1,8 +1,6 @@
 # Resource packs offered on the panel's Looks page.
 #
-# Same as shaders.txt: the panel resolves each slug through Modrinth and offers
-# a download. Packs are dropped into .minecraft/resourcepacks and enabled in
-# Options → Resource Packs.
+# The panel resolves each slug through Modrinth and offers a download.
 #
 # One slug per line, comments on their own line. Checked against 1.21.1.
 

@@ -1,9 +1,7 @@
 ---
-# Takes a fresh Ubuntu host to a running stack. Every task is idempotent.
-# Layout, variables and conventions: see README.md.
+# Takes a fresh Ubuntu host to a running stack.
 #
-#   ansible-playbook site.yml                 # provision and deploy
-#   ansible-playbook site.yml --tags deploy   # pull and restart only
+# Takes a fresh Ubuntu host to a running stack. Every task is idempotent.
 
 - name: ⛏️ Minecraft | Server host
   hosts: all
@@ -18,8 +16,7 @@
           {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}.
       tags: [always]
 
-  # Order matters: hardening locks SSH down to the key common installs, and
-  # both firewall and minecraft need packages the earlier roles put there.
+  # Order matters — see the three load-bearing orderings in README.md.
   roles:
     - role: common
       tags: [common]

@@ -1,0 +1,43 @@
+---
+# Everything that needs the server already running.
+
+# A first boot takes 5-15 minutes; the tasks below need a running server.
+- name: 🔍 Check | Wait for the server to finish booting
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.command: docker inspect --format {{ '{{.State.Health.Status}}' }} minecraft
+  register: minecraft_boot
+  until: minecraft_boot.stdout == "healthy"
+  retries: 80
+  delay: 15
+  changed_when: false
+
+# The seeded ids are Mojang's; an offline client presents name-derived ones.
+- name: ⚙️ Config | Offline-mode UUIDs
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.command: make offline-ids
+  args:
+    chdir: "{{ deploy_path }}"
+  register: minecraft_ids
+  changed_when: >-
+    'id rewritten' in minecraft_ids.stdout or
+    'duplicate dropped' in minecraft_ids.stdout
+
+- name: ⏰ Schedule | Nightly jobs
+  ansible.builtin.include_tasks: cron.yml
+
+# The mods only exist after a first boot, so this must not fail the deployment
+- name: 🎁 Build | Player modpack
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.command: make modpack
+  args:
+    chdir: "{{ deploy_path }}"
+  changed_when: true
+  failed_when: false
+
+- name: 📊 Report | Where everything lives
+  ansible.builtin.debug:
+    msg:
+      - "Minecraft: {{ ansible_host }}:25565"
+      - "Admin:     https://{{ minecraft_env_overrides.ADMIN_HOST | default('see .env') }}"
+      - "Map:       https://{{ minecraft_env_overrides.MAP_HOST | default('see .env') }}"
+      - "Password:  ssh in and run `make admin-password`"

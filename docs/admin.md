@@ -11,7 +11,7 @@ dashboard with a sidebar:
 
 | Section | Who sees it | What it does |
 |---|---|---|
-| Overview | everyone | TPS / players / CPU charts, memory meter, quick actions |
+| Overview | everyone | TPS, players and CPU charts, plus a memory meter |
 | Map | everyone | the BlueMap render, embedded |
 | Mods | everyone | every mod in one table, linked to Modrinth, with the modpack download |
 | Looks | everyone | shaders and resource packs known to work with this version |
@@ -23,6 +23,10 @@ dashboard with a sidebar:
 
 Light / dark / system theme, toast feedback on every action, and a mobile
 layout with bottom tabs.
+
+> The CPU figure is the share of the **whole host**, 0-100. `docker stats`
+> reports multiples of one core instead, so the same load reads as 480% there
+> and 80% here on a six-core box. The tile says which it is.
 
 ### Accounts
 
@@ -41,7 +45,7 @@ one, reveal it with the eye, copy it, save.
 **Anyone the server already knows gets an account.** Opening the Players page
 reconciles the two lists: every name in `whitelist.json` without an account gets
 one as a `player`, every name in `ops.json` gets one as an `admin`. So people
-seeded from `WHITELIST` and `OPS` in `.env`, or added from the shell, can sign in
+seeded from `OPS` in `.env`, or added from the shell, can sign in
 without anyone creating them by hand.
 
 Operators are made admins on purpose — an op already has full control of the
@@ -96,14 +100,30 @@ locally.
 
 ### What it can and cannot do
 
-Whitelist changes go out over RCON, so the server applies them immediately and
-writes them to `whitelist.json` itself — no restart, no drift. `OPS` and
-`WHITELIST` in `.env` only seed those files on first boot; afterwards
-`EXISTING_WHITELIST_FILE=SKIP` keeps the startup script from overwriting what
-you changed at runtime.
+Whitelist changes go out over RCON, so the server applies them immediately.
+`OPS` in `.env` seeds `ops.json` on the first boot, and `EXISTING_OPS_FILE=SKIP`
+keeps the startup script from overwriting what you changed at runtime. There is
+no `WHITELIST` to match it: the panel owns that file, and whitelists every
+operator the first time it reconciles — `ENFORCE_WHITELIST` applies to them too,
+so a fresh server would otherwise turn its own owner away.
 
-> Without that setting the image rewrites `whitelist.json` from `.env` on every
-> restart, and every player added through the admin panel would silently disappear.
+### ⚠️ In offline mode the panel owns the whitelist file
+
+With `ONLINE_MODE=FALSE` a player's id is derived from their name, capitals
+included — but the server derives it from a lower-cased copy of that name. So
+`whitelist add Alex` writes an id `Alex` will never present, and the door stays
+shut. Correcting the id afterwards is worse: `whitelist remove` looks names up
+through the same lower-cased cache and then cannot find the entry either.
+
+So the panel does not ask the server. It writes `whitelist.json` directly —
+`server/data/whitelist.json` is the one path mounted writable into it — and
+follows with `whitelist reload`, which the running server honours at once. Both
+add and remove take effect before the request returns.
+
+`make offline-ids` covers what the panel did not write: the `OPS` entries seeded
+on the first boot, and anything added from the console. The playbook runs it
+once, after the server finishes booting.
+
 
 The console refuses `stop`, `restart`, `op` and `deop`. Taking the server down
 or handing out operator rights belongs on the shell, where whoever does it can
@@ -118,12 +138,12 @@ see what else is running. Usernames are validated against
   comparison is constant-time.
 - Traefik adds HSTS, `frameDeny`, `nosniff` and a `same-origin` referrer policy.
 
-> **The Docker socket is the real risk here.** The panel mounts
-> `/var/run/docker.sock` read-only to read CPU and memory. Read-only on a socket
-> is *not* a read-only API — anything that can talk to it can start privileged
-> containers, which is root on the host. If you would rather not accept that,
-> delete the socket mount and the `group_add` line from the `admin` service: the
-> panel keeps working and simply hides the CPU and memory readings.
+> **The panel never touches the Docker socket.** It needs container stats, and
+> the socket would be the obvious way to get them — but read-only on a *socket*
+> is not a read-only *API*: anything that can talk to it can start a privileged
+> container, which is root on the host. So a `socket-proxy` sits in front,
+> answering `GET /containers` and refusing everything else with a 403. Drop the
+> service and the panel keeps working, minus the CPU and memory readings.
 
 The panel runs as `PUID:PGID` rather than its image's own user, because the
 server creates `server/data` without the world-execute bit — any other uid gets

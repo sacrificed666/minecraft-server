@@ -1,19 +1,17 @@
 ---
 # The one host this stack runs on, and what is specific to it.
-# Committed on purpose: the hostnames are public DNS, the repository is public,
-# and every password is generated on the server itself by `make init`.
 
 all:
   hosts:
     minecraft:
-      ansible_host: server.sacrificed.me
+      # The address, not the name — the public records sit behind Cloudflare.
+      ansible_host: 57.131.136.129
       # The account a fresh OVH image ships with; the playbook creates deploy_user
       ansible_user: ubuntu
       ansible_port: 22
 
   vars:
     # Written into .env on the server after the secrets are generated there.
-    # Non-secret values only — passwords never leave the host.
     minecraft_env_overrides:
       SERVER_HOST: server.sacrificed.me
       ADMIN_HOST: admin.sacrificed.me

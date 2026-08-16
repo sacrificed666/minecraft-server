@@ -4,19 +4,21 @@ import { authenticate } from "@/lib/users";
 
 export const runtime = "nodejs";
 
-/**
- * Fixed-window rate limit per source address, in memory: the panel is a single
- * instance, and a restart clearing the counters costs an attacker more time
- * than it saves them.
- */
+// Fixed-window limit per address, in memory — the panel is a single instance.
 const ATTEMPT_LIMIT = 8;
 const WINDOW_MS = 5 * 60 * 1000;
 const attempts = new Map<string, { count: number; resetAt: number }>();
 
 function rateLimited(ip: string): boolean {
   const now = Date.now();
+
+  // Swept here, or a failed attempt from every address would be kept forever.
+  for (const [key, seen] of attempts) {
+    if (now > seen.resetAt) attempts.delete(key);
+  }
+
   const entry = attempts.get(ip);
-  if (!entry || now > entry.resetAt) {
+  if (!entry) {
     attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
     return false;
   }
@@ -51,8 +53,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // The env admin is checked first so a database outage never locks the
-  // operator out of their own server.
+  // Checked before the database, so an outage never locks the operator out.
   let session: Session | null = checkEnvAdmin(username, password)
     ? { username, role: "admin" }
     : null;

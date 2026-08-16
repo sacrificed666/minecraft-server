@@ -8,7 +8,7 @@ export function GlassCard({
 }: {
   children: ReactNode;
   className?: string;
-  /** Stagger index for the entrance animation. */
+  // Stagger index for the entrance animation.
   delay?: number;
   hover?: boolean;
 }) {
@@ -30,7 +30,7 @@ export function CardHeader({
 }: {
   title: string;
   hint?: string;
-  /** CSS colour for the series dot that ties the header to its chart. */
+  // CSS colour for the series dot that ties the header to its chart.
   accent?: string;
   right?: ReactNode;
 }) {

@@ -1,0 +1,28 @@
+---
+# Bringing the containers up.
+
+# Docker would create these as root, leaving /data/config unwritable for the server.
+- name: 📦 Setup | Directories the config mounts land in
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.file:
+    path: "{{ deploy_path }}/server/data/config/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: [bluemap, chunky]
+
+- name: 🚀 Deploy | Start the stack
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.command: docker compose up -d --build
+  args:
+    chdir: "{{ deploy_path }}"
+  register: minecraft_compose
+  changed_when: "'Started' in minecraft_compose.stderr or 'Created' in minecraft_compose.stderr"
+
+- name: 🚀 Deploy | Start Traefik
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.command: docker compose --profile proxy up -d proxy
+  args:
+    chdir: "{{ deploy_path }}"
+  register: minecraft_proxy
+  changed_when: "'Started' in minecraft_proxy.stderr or 'Created' in minecraft_proxy.stderr"
+  when: minecraft_enable_proxy

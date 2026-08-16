@@ -1,6 +1,7 @@
 "use client";
 
 import { GlassCard, CardHeader } from "@/components/GlassCard";
+import { Motd } from "@/components/Motd";
 import { Uptime } from "@/components/Uptime";
 import { useMetrics } from "@/components/providers/MetricsProvider";
 import { usePolled } from "@/lib/polling";
@@ -73,9 +74,9 @@ export default function SettingsPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <GlassCard delay={1}>
           <CardHeader title="MOTD" hint="What players see in the server list" />
-          <p className="px-5 pb-5 font-mono text-sm">
-            {info?.properties.motd || "—"}
-          </p>
+          <div className="px-5 pb-5">
+            {info?.properties.motd ? <Motd value={info.properties.motd} /> : "—"}
+          </div>
         </GlassCard>
 
         <GlassCard delay={2}>

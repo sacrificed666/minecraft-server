@@ -1,8 +1,4 @@
-/**
- * Deterministic blocky avatar derived from the player's UUID. A skin-rendering
- * service would send every whitelisted username to a third party and break
- * whenever the host has no outbound internet.
- */
+// Deterministic blocky avatar derived from the player's UUID.
 
 const HUES = [
   "var(--series-tps)",

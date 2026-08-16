@@ -24,6 +24,9 @@ Two things make it work, both already set:
 The first full render of an existing world takes a while. Watch it with
 `make map`.
 
+The server list icon comes from [`server/server-icon.png`](../server/server-icon.png),
+rendered from the admin panel's own mark. Replace it with any 64×64 PNG.
+
 ### 🌙 The render window
 
 Rendering and playing compete for the same CPU, so the maps do not render while

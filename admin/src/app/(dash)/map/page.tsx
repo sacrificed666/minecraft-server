@@ -9,12 +9,7 @@ export default function MapPage() {
   const { data: info } = usePolled<ServerResponse>("/api/server");
   const [ready, setReady] = useState(false);
 
-  /*
-   * MAP_URL is the public address Traefik serves, which only resolves from the
-   * internet. Opened over loopback — an SSH tunnel, or the stack on your own
-   * machine — that domain is not this server, so fall back to the port BlueMap
-   * is published on. Computed after mount: it depends on the browser's URL.
-   */
+  // MAP_URL only resolves from the internet, so loopback gets the direct port.
   const mapUrl = useMemo(() => {
     if (!info) return null;                       // server render: no iframe yet
     const host = window.location.hostname;
@@ -66,8 +61,7 @@ export default function MapPage() {
               title="BlueMap"
               className="size-full border-0"
               onLoad={() => setReady(true)}
-              // Separate origin behind the same proxy; it needs no access to
-              // this page, so keep the sandbox tight.
+              // Separate origin, so the sandbox stays tight.
               sandbox="allow-scripts allow-same-origin allow-popups"
             />
           )}

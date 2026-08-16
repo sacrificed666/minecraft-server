@@ -1,20 +1,16 @@
-import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/guard";
+import { withAdmin, json } from "@/lib/route";
 import { getWhitelist, isValidName, whitelistAdd, whitelistRemove } from "@/lib/mc";
 import { ensureAccounts } from "@/lib/users";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const { denied } = await requireAdmin();
-  if (denied) return denied;
-
-  return NextResponse.json(
+export const GET = withAdmin(async () => {
+  return json(
     { players: await getWhitelist() },
     { headers: { "cache-control": "no-store" } },
   );
-}
+});
 
 async function readName(request: Request): Promise<string | null> {
   try {
@@ -27,13 +23,10 @@ async function readName(request: Request): Promise<string | null> {
   }
 }
 
-export async function POST(request: Request) {
-  const { denied } = await requireAdmin();
-  if (denied) return denied;
-
+export const POST = withAdmin(async (request) => {
   const name = await readName(request);
   if (!name) {
-    return NextResponse.json(
+    return json(
       { error: "Invalid username. Use 3-16 characters: letters, digits or _" },
       { status: 400 },
     );
@@ -43,31 +36,28 @@ export async function POST(request: Request) {
     const message = await whitelistAdd(name);
     // Whitelisting is the decision to let someone in; the account follows it.
     await ensureAccounts([name]).catch(() => []);
-    return NextResponse.json({ ok: true, message, players: await getWhitelist() });
+    return json({ ok: true, message, players: await getWhitelist() });
   } catch (err) {
-    return NextResponse.json(
+    return json(
       { error: err instanceof Error ? err.message : "RCON failed" },
       { status: 502 },
     );
   }
-}
+});
 
-export async function DELETE(request: Request) {
-  const { denied } = await requireAdmin();
-  if (denied) return denied;
-
+export const DELETE = withAdmin(async (request) => {
   const name = await readName(request);
   if (!name) {
-    return NextResponse.json({ error: "Invalid username" }, { status: 400 });
+    return json({ error: "Invalid username" }, { status: 400 });
   }
 
   try {
     const message = await whitelistRemove(name);
-    return NextResponse.json({ ok: true, message, players: await getWhitelist() });
+    return json({ ok: true, message, players: await getWhitelist() });
   } catch (err) {
-    return NextResponse.json(
+    return json(
       { error: err instanceof Error ? err.message : "RCON failed" },
       { status: 502 },
     );
   }
-}
+});

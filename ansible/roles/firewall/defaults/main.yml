@@ -1,7 +1,5 @@
 ---
-# Everything the internet is allowed to reach. RCON, the panel and the map are
-# bound to loopback in compose.yaml and are never opened here.
-# SSH is added separately, from ansible_port.
+# Everything the internet is allowed to reach.
 
 firewall_open_ports:
   - 25565/tcp # the game

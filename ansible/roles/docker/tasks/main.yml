@@ -58,3 +58,7 @@
     name: "{{ deploy_user }}"
     groups: docker
     append: true
+
+# Flushed here, or the daemon restart would kill the stack the next role starts.
+- name: ♻️ Restart | Apply a pending daemon restart now
+  ansible.builtin.meta: flush_handlers

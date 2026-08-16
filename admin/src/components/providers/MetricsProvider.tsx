@@ -6,11 +6,7 @@ import type { Snapshot } from "@/lib/history";
 
 export const POLL_MS = 5000;
 
-/**
- * One poller for the whole app. Every page reads the same snapshot, so
- * navigating between sections never restarts the charts or doubles the RCON
- * traffic against the server.
- */
+// One poller for the whole app.
 const MetricsContext = createContext<Polled<Snapshot>>({
   data: null,
   stale: false,

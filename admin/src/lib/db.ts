@@ -1,11 +1,6 @@
 import { Pool } from "pg";
 
-/**
- * Postgres pool and the schema bootstrap.
- *
- * One table, no migration framework: CREATE TABLE IF NOT EXISTS on startup is
- * honest at this size. Add a real migration tool before changing a column.
- */
+// Postgres pool and the schema bootstrap.
 
 const globalForPool = globalThis as unknown as { __mcPool?: Pool };
 
@@ -26,22 +21,30 @@ export function pool(): Pool {
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id          SERIAL PRIMARY KEY,
-  username    TEXT NOT NULL UNIQUE,
+  username    TEXT NOT NULL,
   password    TEXT NOT NULL,
   role        TEXT NOT NULL DEFAULT 'player' CHECK (role IN ('admin','player')),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_login  TIMESTAMPTZ
 );
-CREATE INDEX IF NOT EXISTS users_username_lower ON users (lower(username));
+-- Minecraft treats names case-insensitively, so "Alex" and "alex" are one
+-- person. UNIQUE on the column itself would let both exist and leave login
+-- picking whichever row came back first.
+CREATE UNIQUE INDEX IF NOT EXISTS users_username_ci ON users (lower(username));
 `;
 
 let ready: Promise<void> | null = null;
 
-/** Idempotent; every entry point awaits it before touching the database. */
+// Idempotent, and a failure is not cached: Postgres is often still starting on
+// the first call, and one rejection must not disable the database for good.
 export function migrate(): Promise<void> {
   ready ??= pool()
     .query(SCHEMA)
-    .then(() => undefined);
+    .then(() => undefined)
+    .catch((err) => {
+      ready = null;
+      throw err;
+    });
   return ready;
 }
 

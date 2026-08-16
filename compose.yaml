@@ -19,8 +19,7 @@ services:
 
     ports:
       - "${SERVER_PORT:-25565}:25565/tcp"
-      # Simple Voice Chat. UDP and public, like the game port — the mod loads
-      # but nobody can hear anyone without it.
+      # Simple Voice Chat.
       - "${VOICE_PORT:-24454}:24454/udp"
       - "${RCON_BIND:-127.0.0.1}:${RCON_PORT:-25575}:25575/tcp"
       - "${MAP_BIND:-127.0.0.1}:${MAP_PORT:-8100}:8100/tcp"
@@ -62,23 +61,28 @@ services:
       OVERRIDE_SERVER_PROPERTIES: "true"
 
       OPS: "${OPS:-}"
-      WHITELIST: "${WHITELIST:-}"
       ENFORCE_WHITELIST: "${ENFORCE_WHITELIST:-TRUE}"
-      # SKIP keeps panel and in-game changes from being overwritten on restart
+      # SKIP keeps panel and in-game changes from being overwritten on restart.
+      # There is no WHITELIST to seed: the panel owns that file, and whoever is
+      # in OPS is whitelisted by it on first sight.
       EXISTING_WHITELIST_FILE: "SKIP"
       EXISTING_OPS_FILE: "SKIP"
       ENABLE_RCON: "true"
       RCON_PASSWORD: "${RCON_PASSWORD:?not set - run 'make init'}"
 
+      # Gamerules live in level.dat, so server.properties cannot express them.
+      RCON_CMDS_STARTUP: |-
+        gamerule playersSleepingPercentage ${SLEEP_PERCENTAGE:-0}
+
     volumes:
       - ./server/data:/data
       - ./server/mods.txt:/extras/mods.txt:ro
+      # 64x64, the size the server list expects — rendered from the panel's icon
+      - ./server/server-icon.png:/data/server-icon.png:ro
       # Per file, so BlueMap can still write the map configs beside them.
-      # accept-download in core.conf is what makes BlueMap render at all.
       - ./server/bluemap/core.conf:/data/config/bluemap/core.conf:ro
       - ./server/bluemap/webserver.conf:/data/config/bluemap/webserver.conf:ro
-      # A full pre-generation runs for days; continueOnRestart makes it survive
-      # a deploy instead of starting over. Chunky keeps its task state beside it.
+      # continueOnRestart lets a multi-day pre-generation survive a deploy.
       - ./server/chunky/config.json:/data/config/chunky/config.json:ro
 
     networks: [default, web]
@@ -123,14 +127,12 @@ services:
       UID: "${PUID:-1000}"
       GID: "${PGID:-1000}"
 
-      # Clock-based, not interval-based: the container's TZ is Europe/Kyiv, so
-      # this is local midnight rather than 24h after whenever it last started.
+      # Clock-based, so a deploy does not drift the run into the evening.
       CRON_SCHEDULE: "${BACKUP_CRON:-0 0 * * *}"
       PRUNE_BACKUPS_DAYS: "${PRUNE_BACKUPS_DAYS:-3}"
       BACKUP_NAME: "${LEVEL_NAME:-world}"
       BACKUP_METHOD: "tar"
-      # Must stay false: at midnight nobody is online, and pausing would skip
-      # every scheduled run.
+      # Must stay false: nobody is online at midnight.
       PAUSE_IF_NO_PLAYERS: "false"
       # bluemap is excluded: large, and fully regenerable from the world
       EXCLUDES: "*.jar,cache,logs,*.tmp,libraries,versions,downloads,crash-reports,bluemap"
@@ -164,8 +166,7 @@ services:
       TZ: "${TZ:-Europe/Kyiv}"
 
     volumes:
-      # Postgres 18 wants the parent directory mounted, not data/ itself — it
-      # puts the cluster in a subdirectory so pg_upgrade --link can work later
+      # Postgres 18 wants the parent directory, not data/ itself.
       - postgres:/var/lib/postgresql
 
     # Never published: only the admin panel talks to it, over the internal network
@@ -181,6 +182,24 @@ services:
         limits:
           memory: 512M
 
+  # ─── Docker API, read-only ───
+  # The panel needs container stats. Handing it the socket would hand it root on
+  # the host, so it gets a proxy that answers GET /containers and nothing else.
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:v0.5.0
+    container_name: minecraft-socket-proxy
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      CONTAINERS: "1"
+      POST: "0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
   # ─── Admin panel ───
   admin:
     build: ./admin
@@ -192,6 +211,8 @@ services:
         condition: service_started
       postgres:
         condition: service_healthy
+      socket-proxy:
+        condition: service_started
 
     environment:
       TZ: "${TZ:-Europe/Kyiv}"
@@ -203,9 +224,9 @@ services:
       RCON_PASSWORD: "${RCON_PASSWORD:?not set}"
       MC_CONTAINER: "minecraft"
       MC_DATA_DIR: "/mcdata"
+      DOCKER_API: "http://socket-proxy:2375"
       MC_VERSION: "${MC_VERSION:-1.21.1}"
-      # The guide tells players which build to install, so it reads the same
-      # values the server boots with rather than repeating them.
+      # The guide reads these rather than repeating the versions.
       NEOFORGE_VERSION: "${NEOFORGE_VERSION:-21.1.248}"
       VOICE_PORT: "${VOICE_PORT:-24454}"
       SERVER_HOST: "${SERVER_HOST:-server.sacrificed.me}"
@@ -215,6 +236,9 @@ services:
 
     volumes:
       - ./server/data:/mcdata:ro
+      # The one file the panel writes: in offline mode it owns the whitelist,
+      # because the server derives ids from a lower-cased name and gets them wrong
+      - ./server/data/whitelist.json:/mcdata/whitelist.json
       - ./server/backups:/backups:ro
       - ./server/modpack:/modpack:ro
       # The declared lists, so the Mods page can link each entry to Modrinth
@@ -222,16 +246,10 @@ services:
       - ./server/client-mods.txt:/extras/client-mods.txt:ro
       - ./server/shaders.txt:/extras/shaders.txt:ro
       - ./server/resourcepacks.txt:/extras/resourcepacks.txt:ro
-      # Optional: CPU and memory readings. The UI hides them when absent.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
 
-    # The server creates ./server/data without the world-execute bit, so any
-    # other uid cannot traverse it and whitelist.json reads back empty.
+    # Same uid as the server, or its data directory is unreadable here.
     user: "${PUID:-1000}:${PGID:-1000}"
 
-    # Without this the docker socket above is unreadable (EACCES).
-    # Find the value with: stat -c '%g' /var/run/docker.sock
-    group_add: ["${DOCKER_GID:-988}"]
 
     # Loopback by default; production reaches the panel through Traefik
     ports:

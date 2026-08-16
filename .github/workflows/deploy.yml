@@ -25,8 +25,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  check:
-    name: 🔍 Check | Panel, compose and playbook
+  admin:
+    name: 🔍 Check | Admin panel
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -48,11 +48,24 @@ jobs:
         working-directory: admin
         run: npm run lint
 
+      - name: 🔍 Check | TypeScript
+        working-directory: admin
+        run: npx tsc --noEmit
+
       - name: 🏗️ Build | Next.js production build
         working-directory: admin
         env:
           SESSION_SECRET: build-time-placeholder-value
         run: npm run build
+
+  # Seconds, not minutes — kept apart so it fails fast beside the panel build
+  config:
+    name: 🔍 Check | Compose and playbook
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 📥 Setup | Check out the repository
+        uses: actions/checkout@v7
 
       - name: 🐳 Verify | compose.yaml resolves
         run: |
@@ -65,8 +78,8 @@ jobs:
           make provision-lint
 
   deploy:
-    name: 📤 Apply | Server and panel
-    needs: check
+    name: 📤 Apply | Server and admin panel
+    needs: [admin, config]
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 45
@@ -90,9 +103,7 @@ jobs:
             set -euo pipefail
             cd "$DEPLOY_PATH"
 
-            # Plain markers rather than ::group::, which only works when the
-            # action passes remote output through unprefixed — and this way the
-            # script reads the same when run by hand.
+            # Plain markers: ::group:: needs unprefixed output, which this action does not give.
             echo "▸ checkout — the commit the checks passed on, not the tip"
             git fetch --prune origin
             git checkout "$BRANCH"

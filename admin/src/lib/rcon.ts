@@ -1,11 +1,6 @@
 import net from "node:net";
 
-/**
- * Minimal Source RCON client. Written rather than pulled in: the protocol is
- * four fields wide and multi-packet replies need explicit reassembly.
- *
- * Packet: int32 LE length | int32 LE id | int32 LE type | body\0 | \0
- */
+// Minimal Source RCON client.
 
 const TYPE_AUTH = 3;
 const TYPE_AUTH_RESPONSE = 2;
@@ -106,10 +101,7 @@ export class Rcon {
     }
   }
 
-  /**
-   * Minecraft splits long replies across packets with no end marker, so we
-   * send a second, empty packet and treat its echo as the terminator.
-   */
+  // Long replies have no end marker, so an empty packet's echo terminates them.
   async send(command: string): Promise<string> {
     if (!this.socket) throw new RconError("not connected");
     const id = this.nextId++;
@@ -149,7 +141,7 @@ export class Rcon {
   }
 }
 
-/** Opens a connection, runs the commands in order, always closes. */
+// Opens a connection, runs the commands in order, always closes.
 export async function withRcon<T>(fn: (rcon: Rcon) => Promise<T>): Promise<T> {
   const host = process.env.RCON_HOST ?? "mc";
   const port = Number(process.env.RCON_PORT ?? 25575);

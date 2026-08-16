@@ -1,13 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-/**
- * Resolves declared slugs into something the Looks page can render: a title, an
- * icon, and a direct download for the newest build that matches MC_VERSION.
- *
- * Cached in memory because the page polls and Modrinth rate-limits; a stale
- * entry costs nothing here, a 429 costs the whole page.
- */
+// Resolves slugs into a title, an icon and a download for the current MC_VERSION.
 
 const LIST_DIR = process.env.MODS_LIST_DIR ?? "/extras";
 const MC_VERSION = process.env.MC_VERSION ?? "1.21.1";
@@ -126,12 +120,7 @@ export type ModProject = {
 type ProjectsCache = { at: number; items: ModProject[] };
 const globalMods = globalThis as unknown as { __mcModProjects?: ProjectsCache };
 
-/**
- * Icons and titles for everything in mods.txt and client-mods.txt.
- *
- * One bulk request rather than 87: /v2/projects takes the whole list at once,
- * which is the difference between a page load and a rate limit.
- */
+// Icons and titles for everything in mods.txt and client-mods.txt.
 export async function listModProjects(): Promise<ModProject[]> {
   const cached = globalMods.__mcModProjects;
   if (cached && Date.now() - cached.at < TTL_MS) return cached.items;
@@ -140,8 +129,10 @@ export async function listModProjects(): Promise<ModProject[]> {
     readSlugs("mods.txt"),
     readSlugs("client-mods.txt"),
   ]);
-  const isClient = new Set(client.map((e) => e.split(":")[0]));
-  const slugs = [...server, ...client].map((e) => e.split(":")[0]);
+  // Entries carry a pin as "slug:beta" or "slug=<version>"; the API wants neither
+  const bare = (entry: string) => entry.split(/[:=]/)[0];
+  const isClient = new Set(client.map(bare));
+  const slugs = [...server, ...client].map(bare);
   if (!slugs.length) return [];
 
   const ids = encodeURIComponent(JSON.stringify(slugs));

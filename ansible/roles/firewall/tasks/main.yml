@@ -1,8 +1,7 @@
 ---
 # Ports are allowed before anything is denied, so the run cannot lock itself out.
 
-# ufw reports success whether or not it changed anything, so state is read once
-# and the tasks below run only on a difference.
+# ufw always reports success, so the state is read once and compared.
 - name: 🔍 Check | Current ufw state
   ansible.builtin.command: ufw status verbose
   register: firewall_state

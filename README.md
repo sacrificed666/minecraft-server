@@ -2,7 +2,7 @@
 
 A production-oriented, single-command modded Minecraft server: NeoForge on
 Minecraft 1.21.1, an 85-entry Create pack declared in a text file, scheduled world
-backups, and a web control panel behind TLS — all reproducible from this
+backups, and a web admin panel behind TLS — all reproducible from this
 repository.
 
 Built on [`itzg/minecraft-server`](https://github.com/itzg/docker-minecraft-server),
@@ -14,6 +14,7 @@ Built on [`itzg/minecraft-server`](https://github.com/itzg/docker-minecraft-serv
 | `backups` | `itzg/mc-backup:stable` | consistent world snapshots over RCON |
 | `admin` | built from `admin/` | Server Admin Panel: charts, whitelist, console |
 | `postgres` | `postgres:18-alpine` | panel user accounts |
+| `socket-proxy` | `tecnativa/docker-socket-proxy` | read-only window on the Engine API, for container stats |
 | `proxy` | `traefik:v3.7` | TLS and routing (opt-in profile) |
 
 | Host | Serves | Through Traefik? |
@@ -33,6 +34,7 @@ flowchart TB
         AD["🎛️ admin<br/>Next.js panel"]
         PG[("🐘 postgres<br/>panel accounts")]
         BK["📦 backups<br/>nightly · 00:00"]
+        SP["🔒 socket-proxy<br/>GET /containers only"]
         DATA[("💾 server/data<br/>world · mods · logs")]
         ARCH[("🗂️ server/backups")]
 
@@ -40,6 +42,7 @@ flowchart TB
         TR -->|"map.sacrificed.me → BlueMap :8100"| MC
         AD -->|"RCON :25575"| MC
         AD --> PG
+        AD -->|"container stats"| SP
         AD -.->|read-only| DATA
         MC --- DATA
         BK -->|"RCON save-off / save-on"| MC
@@ -150,11 +153,11 @@ most:
 | `VIEW_DISTANCE` | `16` | Raised from the vanilla `10`. The biggest single lever on server load — drop to `10`–`12` if TPS suffers or you raise `MAX_PLAYERS`. |
 | `MAX_PLAYERS` | `10` | Lowered from the vanilla `20`; headroom over the expected ~5 concurrent players. |
 | `DIFFICULTY` | `hard` | Raised from the vanilla `easy`. Server-wide — Minecraft has no per-player difficulty. |
+| `SLEEP_PERCENTAGE` | `0` | How many players must sleep to skip the night, as a percentage. `0` means one is enough. |
 | `ALLOW_FLIGHT` | `FALSE` | Vanilla default. **Set to `TRUE` if any mod grants flight** (jetpacks, wings) — otherwise those players get kicked. |
 | `ONLINE_MODE` | `FALSE` | Unlicensed clients can join. See the note below before changing it. |
 | `MAX_TICK_TIME` | `60000` | Vanilla watchdog. Set to `-1` if a heavy pack trips it during worldgen. |
-| `OPS` | *(empty)* | Comma-separated admin nicknames. |
-| `WHITELIST` | *(empty)* | Comma-separated. Also set `ENFORCE_WHITELIST=true`. |
+| `OPS` | *(empty)* | Comma-separated admin nicknames. The panel whitelists them on first sight. |
 | `RCON_PASSWORD` | *(generated)* | Required. `make init` fills it in. |
 
 > **This server runs with `ONLINE_MODE=FALSE`,** so a Minecraft licence is not
@@ -167,6 +170,10 @@ most:
 > that switching this value changes every player's UUID: whitelist and op
 > entries have to be added again afterwards, and existing player data is
 > orphaned. Set it once, before people start playing.
+>
+> While it is `FALSE`, the admin panel writes `whitelist.json` itself: the ids
+> the server derives come from a lower-cased name and do not match what a client
+> presents. See [docs/admin.md](docs/admin.md).
 
 Changed something? `make restart` re-applies `.env` to the **Minecraft**
 container. Settings the other services read — backups, the panel — need
@@ -213,6 +220,13 @@ sodium, so all three live in `client-mods.txt`.
 
 `create-bits-n-bobs` is gone entirely: no build of it works with the current
 `create-tfmg` and Create 6 at once, and tfmg has more downloads.
+
+> **Sodium and Iris move together.** Iris carries `:beta` on purpose. Sodium 0.8
+> renamed the class holding an option Iris reads, so the newest *stable* Iris
+> crashes every client before the main menu, while the beta is built against the
+> new name. Sodium cannot be held back to suit it either: `sable`, the physics
+> engine Create Aeronautics runs on, refuses to load below 0.8.12. Change one of
+> the three and start a client before handing the pack to anyone.
 
 > **Simple Voice Chat uses its own port.** It listens on **UDP 24454**, which
 > `compose.yaml` publishes and the `firewall` role opens. Change it with
@@ -300,7 +314,7 @@ make players       # who is online
 make tps           # server tick rate
 make mods          # installed mod jars
 make map           # BlueMap render status
-make offline-ids   # rewrite whitelist/ops UUIDs for ONLINE_MODE=FALSE
+make offline-ids   # correct seeded ops/whitelist ids for ONLINE_MODE=FALSE
 ```
 
 `make up` and `make restart` refuse to run without a `.env` and warn when
@@ -339,19 +353,22 @@ Budget the disk first — about 15 KB per generated chunk, so `R=3000` is roughl
 ## 📂 Layout
 
 ```
-compose.yaml           # all five services
+.ssh/                  # the host key                (git-ignored)
+compose.yaml           # every service
 .env                   # your configuration            (git-ignored)
 .env.example           # annotated template
 Makefile               # every operation, including the ones CI runs
+scripts/               # ansible.sh (runs the playbook anywhere), offline-ids.py
 docs/                  # deployment, running it, the admin panel
 server/
   mods.txt             # what the server installs
   client-mods.txt      # fetched into the player pack, never onto the server
   server-only-mods.txt # installed, but withheld from the player pack
-  bluemap/             # BlueMap config, mounted read-only over the defaults
-  chunky/              # pre-generation config, same pattern
   shaders.txt          # what the Looks page offers
   resourcepacks.txt    #   "        "        "        "
+  server-icon.png      # 64x64, what the server list shows
+  bluemap/             # BlueMap config, mounted read-only over the defaults
+  chunky/              # pre-generation config, same pattern
   data/                # world, mod configs, logs      (git-ignored)
   backups/             # world archives                (git-ignored)
   modpack/             # built player modpack          (git-ignored)
@@ -360,6 +377,7 @@ admin/                 # Server Admin Panel (Next.js)
   src/lib/             # RCON client, sessions, users, metrics, polling
   src/components/      # shell, charts, toasts, theme
   src/app/api/         # auth, metrics, users, whitelist, console, modpack
+  src/app/(dash)/      # the nine pages
 ansible/
   README.md            # layout, variable scheme, conventions
   site.yml             # the play: five roles, in order

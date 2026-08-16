@@ -1,11 +1,4 @@
-/**
- * Client-side password generation, so a new one appears the moment it is asked
- * for instead of after a round trip.
- *
- * The alphabet mirrors lib/users.ts deliberately rather than importing it:
- * that module pulls in node:crypto and would drag the server runtime into the
- * browser bundle. Readable, with no character that can be misread aloud.
- */
+// Client-side, so a new password appears without a round trip.
 const ALPHABET = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 export function generatePassword(length = 14): string {

@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-"""Rewrite whitelist/ops UUIDs for a server running with ONLINE_MODE=FALSE.
+"""Correct whitelist/ops ids for a server running with ONLINE_MODE=FALSE.
 
-An offline client presents UUID.nameUUIDFromBytes("OfflinePlayer:<name>"), but
-`whitelist add` resolves the name through Mojang whenever the server has
-internet — so the file records an id the player will never present, and the
-whitelist check, which keys on UUID, rejects them.
+An offline client presents UUID.nameUUIDFromBytes("OfflinePlayer:<name>"), built
+from the name exactly as typed. The server disagrees with itself about it: the
+seeding that OPS goes through folds the name to lower case first, so anyone with
+a capital letter is written under an id they will never present.
 
-Usage: offline-ids.py server/data/whitelist.json server/data/ops.json
+The admin panel writes whitelist.json itself and gets this right. This is for
+what the panel did not put there: ops.json, and anything added from the console.
+Canonical spellings arrive on stdin, one per line — without a match, the stored
+spelling is all there is to go on.
+
+Usage: offline-ids.py server/data/whitelist.json server/data/ops.json < names
 """
 
 import hashlib
@@ -25,39 +30,46 @@ def offline_uuid(name: str) -> str:
 
 
 def main(paths: list[str]) -> int:
-    touched = 0
+    canonical = {}
+    if not sys.stdin.isatty():
+        for line in sys.stdin:
+            name = line.strip()
+            if name:
+                canonical[name.lower()] = name
+
+    report = []
     for path in paths:
         if not os.path.exists(path):
             continue
-        entries = json.load(io.open(path, encoding="utf-8"))
+        try:
+            entries = json.load(io.open(path, encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
 
-        # Re-adding a name after the switch leaves two entries for one player:
-        # the Mojang id and the offline one. Keep the last of each name, then
-        # correct its id, so the file converges however many times this runs.
-        by_name: dict[str, dict] = {}
-        for entry in entries:
-            by_name[entry["name"].lower()] = entry
-        deduped = list(by_name.values())
+        # Re-adding a name leaves two entries for one player. Keep the last of
+        # each, so the file converges however many times this runs.
+        deduped = list({e["name"].lower(): e for e in entries}.values())
 
         changed = 0
         for entry in deduped:
-            want = offline_uuid(entry["name"])
-            if entry.get("uuid") != want:
-                entry["uuid"] = want
+            name = canonical.get(entry["name"].lower(), entry["name"])
+            want = offline_uuid(name)
+            if entry.get("uuid") != want or entry["name"] != name:
+                entry["name"], entry["uuid"] = name, want
                 changed += 1
 
-        io.open(path, "w", encoding="utf-8", newline="\n").write(
-            json.dumps(deduped, indent=2) + "\n"
-        )
         dropped = len(entries) - len(deduped)
-        print(
-            f"  {path}: {len(deduped)} entries"
-            f"{f', {dropped} duplicate dropped' if dropped else ''}"
-            f"{f', {changed} id rewritten' if changed else ''}"
-        )
-        touched += 1
-    if not touched:
-        print("  nothing to do — no whitelist or ops file yet")
+        if changed or dropped:
+            io.open(path, "w", encoding="utf-8", newline="\n").write(
+                json.dumps(deduped, indent=2) + "\n"
+            )
+            report.append(
+                f"  {os.path.basename(path)}: {changed} corrected"
+                + (f", {dropped} duplicate dropped" if dropped else "")
+            )
+
+    if report:
+        print("\n".join(report))
     return 0
 
 

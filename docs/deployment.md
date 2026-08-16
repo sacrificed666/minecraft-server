@@ -33,19 +33,35 @@ task is idempotent, and only `ansible.builtin` modules are used, so nothing has
 to be installed from Galaxy first.
 
 ```bash
-make provision-lint               # syntax only, no host needed
+make host-key                     # trust the host key, once
+make provision-lint               # syntax only, no host and no vault
 make provision-check              # dry run against the host, shows the diff
 make provision                    # apply
 ```
 
-[`ansible/inventory.yml`](../ansible/inventory.yml) is committed and already
-points at `server.sacrificed.me`. Nothing in it is secret — the hostnames are
-public DNS records, the repository is public, and every password is generated
-on the server by `make init`. Edit it directly to target a different host.
+**Ansible does not have to be installed.** Every one of those goes through
+[`scripts/ansible.sh`](../scripts/ansible.sh), which runs `ansible-playbook`
+directly when it is on `PATH` and otherwise in a container — the only way to
+drive the playbook from Windows, which Ansible has no native build for. The
+container sees the playbook, the SSH key and `known_hosts`, and nothing else.
 
-> Running from a Codespace prints *"world writable directory ... ignoring it as
-> an ansible.cfg source"*. Harmless: the playbook finds its roles relative to
-> `site.yml` either way, and it does not happen on a normal checkout.
+The key is looked for at `.ssh/minecraft.key` in the checkout, then
+`~/.ssh/minecraft.key`. The in-repo `.ssh/` is git-ignored, so the key travels
+with the working copy without ever being committed. Point `KEY` elsewhere:
+
+```bash
+make provision KEY=~/.ssh/id_ed25519
+```
+
+[`ansible/inventory.yml`](../ansible/inventory.yml) is committed and holds the
+host's **address**, not its name: with the records proxied through a CDN the
+public name resolves to the CDN rather than to the host. Nothing in it is secret
+— the repository is public, and every password is generated on the server by
+`make init`. Edit it directly to target a different host.
+
+> `make host-key` prints the fingerprints it recorded. Compare them against the
+> provider's console the first time: host key verification stays on, so this is
+> the one moment the trust decision is actually made.
 
 Five roles, each with its own defaults, run in order:
 
@@ -111,9 +127,12 @@ Run it from the Actions tab and pick a target:
 | `stack` | recreates every service; the server restarts |
 | `modpack` | rebuilds `modpack.zip` from the installed jars |
 
-It lints and builds the panel and validates `compose.yaml` and the Ansible
-playbook **before** touching the server, then applies and waits for the panel to
-report healthy — failing the run with the last 50 log lines if it does not.
+Two check jobs run **in parallel** before anything is touched: `admin` lints,
+type-checks and builds the panel, and `config` validates `compose.yaml` and the
+Ansible playbook. The second finishes in seconds, so a broken compose file is
+reported without waiting on a Next.js build. Only when both pass does `deploy`
+apply and wait for the panel to report healthy — failing the run with the last
+50 log lines if it does not.
 
 The server is reset to **the exact commit the checks passed on**, not to the
 branch tip: those differ the moment somebody pushes while a deployment is
@@ -125,15 +144,19 @@ only in the workflow file, so when a deployment misbehaves you can ssh in and
 run the identical command by hand. It also means `make`'s own `check`
 prerequisite guards the pipeline: a missing `.env` stops the deployment.
 
-The `check` job validates compose the same way, through `make init` and
-`make config` rather than placeholder environment variables — so a change that
-breaks `make init` on a fresh host fails in CI instead of on the server.
+The `config` job validates compose the same way a person would, through
+`make init` and `make config` rather than placeholder environment variables — so
+a change that breaks `make init` on a fresh host fails in CI instead of on the
+server.
 
 ```mermaid
 flowchart LR
-    Run(["👤 Actions tab<br/>workflow_dispatch"]) --> Check["🔍 check<br/>eslint · next build<br/>make config · make provision-lint"]
-    Check -- fails --> Stop[/"✋ nothing is deployed"/]
-    Check -- passes --> SSH["🔑 appleboy/ssh-action"]
+    Run(["👤 Actions tab<br/>workflow_dispatch"]) --> Panel["🔍 admin<br/>eslint · tsc · next build"]
+    Run --> Conf["🔍 config<br/>make config · make provision-lint"]
+    Panel -- fails --> Stop[/"✋ nothing is deployed"/]
+    Conf -- fails --> Stop
+    Panel --> SSH["🔑 appleboy/ssh-action"]
+    Conf --> SSH
     SSH --> Pull["📥 git reset --hard to the checked SHA"]
     Pull --> Target{{"target?"}}
     Target -->|admin| A["🎛️ make admin<br/>players stay connected"]

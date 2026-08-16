@@ -1,7 +1,4 @@
-/**
- * Inline icons. Small enough that a dependency would cost more than it saves,
- * and inline SVG inherits currentColor for free.
- */
+// Inline icons.
 
 type Props = { className?: string };
 

@@ -4,17 +4,24 @@ Ansible takes a fresh Ubuntu host to a running stack. This file covers **how the
 code is organised**; the [main README](../README.md) covers running a deployment.
 
 ```bash
+make host-key           # 🔑 trust the host key, once
 make provision-lint     # 🔍 syntax only — no host, no vault
 make provision-check    # 🩺 dry run against the host, with a diff
 make provision          # 🚀 apply
 ```
+
+Ansible itself is optional: [`scripts/ansible.sh`](../scripts/ansible.sh) uses a
+local `ansible-playbook` when there is one and a container when there is not,
+which is what makes any of this work on Windows. The SSH key comes from
+`.ssh/minecraft.key` in the checkout — git-ignored — or `~/.ssh/minecraft.key`;
+`KEY=…` overrides both.
 
 ---
 
 ## 📂 Layout
 
 ```
-ansible.cfg            # inventory path, roles path, SSH multiplexing
+ansible.cfg            # roles path, output format, SSH multiplexing
 inventory.yml          # the host: address, login account, its hostnames
 group_vars/all/
   main.yml             # values more than one role reads
@@ -26,7 +33,10 @@ roles/
   hardening/           # SSH policy
   docker/              # Engine and Compose plugin, daemon log caps
   firewall/            # ufw
-  minecraft/           # checkout, .env, docker compose up
+  minecraft/
+    checkout.yml       # the checkout and its .env
+    stack.yml          # docker compose up
+    post.yml           # offline ids, cron, modpack — needs a running server
 ```
 
 ---
@@ -59,22 +69,29 @@ flowchart TD
     Minecraft --> Eula{{"🔍 EULA=TRUE?"}}
     Eula -- no --> Stop
     Eula -- yes --> Up["🚀 docker compose up -d --build"]
-    Up --> Modpack["🎁 make modpack"]
+    Up --> Boot["⏳ wait for the first boot"]
+    Boot --> Ids["🪪 make offline-ids"]
+    Ids --> Cron["⏰ nightly map window"]
+    Cron --> Modpack["🎁 make modpack"]
     Modpack --> Done([✅ stack running])
 
     style Stop stroke:#ef4444,stroke-width:2px
     style Done stroke:#22c55e,stroke-width:2px
 ```
 
-### ⚠️ Two orderings are load-bearing
+### ⚠️ Three orderings are load-bearing
 
-They are not cosmetic — reversing either one breaks the run:
+They are not cosmetic — reversing any one of them breaks the run:
 
 1. **`common` installs the deploy user's key before `hardening` disables password
    authentication.** The other way round locks the playbook out of the host
    mid-play, with no way back in.
 2. **`firewall` allows every port before it sets the default deny policy.** The
    other way round drops the SSH session the playbook is running over.
+3. **`docker` flushes its restart handler before `minecraft` runs.** Handlers
+   fire at the end of a play by default, so a new `daemon.json` restarted the
+   daemon *after* the stack had been started — killing the server that had just
+   finished a fifteen-minute first boot.
 
 The same reasoning is why the EULA gate refuses rather than defaults: accepting
 Mojang's licence is a decision for a person, not for automation.

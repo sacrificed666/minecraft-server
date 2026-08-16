@@ -20,8 +20,7 @@ import {
   IconLooks,
 } from "./Icons";
 
-// adminOnly items disappear for players; the API enforces the same split, so
-// hiding them is convenience rather than the security boundary.
+// Convenience only — the API enforces the same split.
 const NAV = [
   { href: "/", label: "Overview", Icon: IconOverview, adminOnly: false },
   { href: "/map", label: "Map", Icon: IconMap, adminOnly: false },

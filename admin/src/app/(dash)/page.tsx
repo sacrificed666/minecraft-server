@@ -23,8 +23,7 @@ export default function OverviewPage() {
   const cpu: Point[] = history.map((s) => ({ t: s.t, v: s.cpu }));
   const hasCpu = cpu.some((p) => p.v !== null);
 
-  // [0,20] made a dip to 18 two pixels tall. Frame the samples instead, keeping
-  // 20 in view so full speed stays the ceiling you read against.
+  // [0,20] made a dip to 18 two pixels tall.
   const tpsValues = tps.map((p) => p.v).filter((v): v is number => v !== null);
   const tpsFloor = tpsValues.length ? Math.max(0, Math.min(...tpsValues) - 1) : 0;
 
@@ -70,7 +69,7 @@ export default function OverviewPage() {
             value={snap?.cpuPercent != null ? snap.cpuPercent.toFixed(0) : "—"}
             suffix="%"
             accent="var(--series-cpu)"
-            detail="Percent of one core"
+            detail={snap?.cpuCores ? `Share of ${snap.cpuCores} cores` : "Share of the host"}
             delay={2}
           />
         ) : (
@@ -123,10 +122,15 @@ export default function OverviewPage() {
         <GlassCard delay={6}>
           <CardHeader
             title="CPU usage"
-            hint="Percent of one core; the main tick is single-threaded"
+            hint="Share of every core on the host; the main tick is single-threaded, so one busy core is the usual ceiling"
             accent="var(--series-cpu)"
           />
-          <LineChart data={cpu} color="var(--series-cpu)" format={(v) => `${v.toFixed(0)}%`} />
+          <LineChart
+            data={cpu}
+            color="var(--series-cpu)"
+            format={(v) => `${v.toFixed(1)}%`}
+            formatTick={(v) => `${v < 10 ? v.toFixed(1) : v.toFixed(0)}%`}
+          />
         </GlassCard>
       )}
 

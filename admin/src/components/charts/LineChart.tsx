@@ -7,9 +7,12 @@ export type Point = { t: number; v: number | null };
 type Props = {
   data: Point[];
   color: string;
-  /** Fixed domain when the metric has a natural ceiling (TPS 0-20, CPU 0-100). */
+  // Fixed domain when the metric has a natural ceiling (TPS 0-20, CPU 0-100).
   domain?: [number, number];
   format: (v: number) => string;
+  // Axis labels only. Ticks sit close together, so a format good enough for one
+  // value can print the same label five times.
+  formatTick?: (v: number) => string;
   unit?: string;
   height?: number;
 };
@@ -17,11 +20,21 @@ type Props = {
 const PAD = { top: 14, right: 8, bottom: 20, left: 38 };
 const GRID_ROWS = 4;
 
+// 1, 2 or 5 times a power of ten. 2.5 is deliberately absent: on a count it
+// would label gridlines with halves of a player.
+function niceStep(rough: number): number {
+  if (rough <= 0) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const scaled = rough / magnitude;
+  return (scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10) * magnitude;
+}
+
 export function LineChart({
   data,
   color,
   domain,
   format,
+  formatTick,
   unit = "",
   height = 168,
 }: Props) {
@@ -45,15 +58,23 @@ export function LineChart({
 
   const points = useMemo(() => data.filter((d) => d.v !== null), [data]);
 
-  const [min, max] = useMemo(() => {
-    if (domain) return domain;
-    if (!points.length) return [0, 1];
-    const values = points.map((p) => p.v as number);
-    const lo = Math.min(...values);
-    const hi = Math.max(...values);
-    if (lo === hi) return [Math.max(0, lo - 1), hi + 1];
-    const margin = (hi - lo) * 0.15;
-    return [Math.max(0, lo - margin), hi + margin];
+  // Snapped outwards to whole steps, so every gridline lands on a round value
+  // instead of on an arbitrary fraction of the observed range.
+  const [min, max, step] = useMemo(() => {
+    const raw: [number, number] = domain
+      ? domain
+      : !points.length
+        ? [0, 1]
+        : (() => {
+            const values = points.map((p) => p.v as number);
+            const lo = Math.min(...values);
+            const hi = Math.max(...values);
+            if (lo === hi) return [Math.max(0, lo - 1), hi + 1] as [number, number];
+            const margin = (hi - lo) * 0.15;
+            return [Math.max(0, lo - margin), hi + margin] as [number, number];
+          })();
+    const size = niceStep((raw[1] - raw[0]) / GRID_ROWS);
+    return [Math.floor(raw[0] / size) * size, Math.ceil(raw[1] / size) * size, size];
   }, [points, domain]);
 
   const plotW = Math.max(0, width - PAD.left - PAD.right);
@@ -95,8 +116,7 @@ export function LineChart({
   }, [data, width, chartHeight, min, max]);
 
   const latest = points.at(-1)?.v ?? null;
-  // useId keeps the gradient reference stable and unique across instances
-  // without reaching for a random value during render.
+  // useId keeps the gradient unique without a random value during render.
   const gradientId = `grad-${useId().replace(/[:«»]/g, "")}`;
 
   const hovered = hoverIndex !== null ? data[hoverIndex] : null;
@@ -140,8 +160,8 @@ export function LineChart({
         </defs>
 
         {/* Recessive grid: hairlines, muted tick labels */}
-        {Array.from({ length: GRID_ROWS + 1 }, (_, i) => {
-          const value = min + ((max - min) * i) / GRID_ROWS;
+        {Array.from({ length: Math.round((max - min) / step) + 1 }, (_, i) => {
+          const value = min + step * i;
           const gy = y(value);
           return (
             <g key={i}>
@@ -161,7 +181,7 @@ export function LineChart({
                 fill="var(--ink-muted)"
                 style={{ fontVariantNumeric: "tabular-nums" }}
               >
-                {format(value)}
+                {(formatTick ?? format)(value)}
               </text>
             </g>
           );

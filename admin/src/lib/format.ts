@@ -1,4 +1,4 @@
-/** Number and time formatting shared by the pages. No React, no I/O. */
+// Number and time formatting shared by the pages.
 
 export function bytes(value: number): string {
   if (value < 1024) return `${value} B`;

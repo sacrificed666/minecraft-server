@@ -1,16 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-/**
- * Read-only views over the server's own directories, so nothing here can drift
- * out of sync with what is actually installed or archived.
- */
+// Read-only views over the server's own directories, so nothing can drift.
 
 const DATA_DIR = process.env.MC_DATA_DIR ?? "/mcdata";
 const BACKUP_DIR = process.env.MC_BACKUP_DIR ?? "/backups";
 
-// The bundler cannot resolve runtime-mounted paths; tracing them would pull the
-// whole project into the standalone output.
+// Runtime-mounted paths: tracing them would bloat the standalone output.
 const join = (base: string, ...rest: string[]) =>
   path.join(/*turbopackIgnore: true*/ base, ...rest);
 
@@ -51,7 +47,7 @@ export async function listMods(): Promise<ModFile[]> {
   }
 }
 
-/** Last N lines of latest.log, with the server's colour codes removed. */
+// Last N lines of latest.log, with the server's colour codes removed.
 export async function tailLog(lines = 200): Promise<string[]> {
   try {
     const raw = await fs.readFile(join(DATA_DIR, "logs", "latest.log"), "utf8");
@@ -69,10 +65,7 @@ const LIST_DIR = process.env.MODS_LIST_DIR ?? "/extras";
 
 export type DeclaredMod = { slug: string; pin: string | null; client: boolean };
 
-/**
- * The slugs from mods.txt and client-mods.txt. The jars on disk carry no link
- * back to Modrinth, so the declared lists are the only way to offer one.
- */
+// The slugs from mods.txt and client-mods.txt.
 export async function listDeclaredMods(): Promise<DeclaredMod[]> {
   const read = async (file: string, client: boolean): Promise<DeclaredMod[]> => {
     try {
@@ -82,7 +75,8 @@ export async function listDeclaredMods(): Promise<DeclaredMod[]> {
         .map((l) => l.trim())
         .filter((l) => l && !l.startsWith("#"))
         .map((entry) => {
-          const [slug, pin] = entry.split(":");
+          // "slug", "slug:beta" or "slug=<version>" — the pin is either form
+          const [slug, pin] = entry.split(/[:=]/);
           return { slug, pin: pin ?? null, client };
         });
     } catch {
@@ -114,7 +108,7 @@ export async function readServerProperties(): Promise<ServerProperties> {
   }
 }
 
-/** Recursive size of the world directory, in bytes. */
+// Recursive size of the world directory, in bytes.
 export async function worldSize(levelName: string): Promise<number | null> {
   async function walk(dir: string): Promise<number> {
     let total = 0;

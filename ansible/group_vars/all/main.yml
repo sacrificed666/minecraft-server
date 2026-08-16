@@ -1,13 +1,9 @@
 ---
-# Values more than one role reads. Role-private settings live in
-# roles/<name>/defaults/main.yml and carry the role name as a prefix.
-# Nothing secret belongs here — secrets live in vault.yml beside this file, and
-# the stack's own passwords are generated on the server by `make init`.
+# Values more than one role reads.
 
 timezone: Europe/Kyiv
 
-# The host account's password, for sudo. Decrypted from vault.yml at run time;
-# without the vault password Ansible stops before it connects.
+# The host account's password, for sudo.
 ansible_become_password: "{{ vault_server_password }}"
 
 # The unprivileged account that owns the checkout and runs Docker

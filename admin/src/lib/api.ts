@@ -1,16 +1,10 @@
-/**
- * Response shapes shared by the route handlers and the pages they feed.
- *
- * Types only — nothing here runs. Each handler annotates its payload with the
- * type below, so a field renamed on the server fails to compile on the client
- * rather than silently rendering "—".
- */
+// Response shapes shared by the route handlers and the pages they feed.
 import type { BackupFile, DeclaredMod, ModFile } from "./files";
 import type { Extra, ModProject } from "./modrinth";
 import type { PlayerEntry } from "./mc";
 import type { User } from "./users";
 
-/** The subset of server.properties the panel displays. */
+// The subset of server.properties the panel displays.
 export type ServerSettings = {
   motd: string;
   difficulty: string;

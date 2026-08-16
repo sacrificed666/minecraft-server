@@ -1,0 +1,61 @@
+---
+# The checkout and its .env, before anything starts.
+
+- name: 🔍 Check | deploy_repo is set
+  ansible.builtin.assert:
+    that: deploy_repo | default("") | length > 0
+    fail_msg: Set deploy_repo in group_vars — the role has no sensible default for it.
+
+# Owned up front, so the checkout needs no recursive chown over server/data
+- name: 📦 Setup | Deployment directory
+  ansible.builtin.file:
+    path: "{{ deploy_path }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
+
+# force discards local edits to tracked files; .env and server/ are git-ignored
+- name: 🚀 Deploy | Check out the repository
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.git:
+    repo: "{{ deploy_repo }}"
+    dest: "{{ deploy_path }}"
+    version: "{{ deploy_branch }}"
+    force: true
+
+- name: 🔍 Check | Existing .env
+  ansible.builtin.stat:
+    path: "{{ deploy_path }}/.env"
+  register: minecraft_env_file
+
+- name: 📦 Setup | Generate .env secrets on first deploy
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.command: make init
+  args:
+    chdir: "{{ deploy_path }}"
+  when: not minecraft_env_file.stat.exists
+  changed_when: true
+
+- name: ⚙️ Config | Hostnames and gameplay overrides
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.lineinfile:
+    path: "{{ deploy_path }}/.env"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+  loop: "{{ minecraft_env_overrides | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: 🔍 Check | EULA accepted
+  ansible.builtin.command: grep -q '^EULA=TRUE' {{ deploy_path }}/.env
+  register: minecraft_eula
+  changed_when: false
+  failed_when: false
+
+- name: 🔍 Check | Stop unless the EULA is accepted
+  ansible.builtin.assert:
+    that: minecraft_eula.rc == 0
+    fail_msg: >-
+      EULA is not TRUE in {{ deploy_path }}/.env. Accepting Minecraft's EULA is
+      a decision for a person, not a playbook — set it and run again.

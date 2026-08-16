@@ -1,6 +1,6 @@
 "use client";
 
-/** Shared by the lists that are long enough to need ordering. */
+// Shared by the lists that are long enough to need ordering.
 export type SortKey = "name" | "size" | "downloads";
 
 const LABELS: Record<SortKey, string> = {

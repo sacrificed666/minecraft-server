@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/guard";
+import { withUser, json } from "@/lib/route";
 import { readServerProperties, worldSize } from "@/lib/files";
 import { getOps } from "@/lib/mc";
 import { getContainerUptime } from "@/lib/docker";
@@ -8,10 +7,7 @@ import type { ServerResponse } from "@/lib/api";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const { denied } = await requireUser();
-  if (denied) return denied;
-
+export const GET = withUser(async () => {
   const properties = await readServerProperties();
   const level = properties["level-name"] || "world";
   const [size, ops, startedAt] = await Promise.all([
@@ -47,5 +43,5 @@ export async function GET() {
     voicePort: process.env.VOICE_PORT ?? "24454",
   };
 
-  return NextResponse.json(body, { headers: { "cache-control": "no-store" } });
-}
+  return json(body);
+});

@@ -23,10 +23,14 @@
 /admin/.next/
 /admin/next-env.d.ts
 
+# ─── Keys ───
+# The SSH key for the host, and the key to the Ansible vault. Neither is ever
+# committed; group_vars/all/vault.yml is, because it is encrypted.
+/.ssh/
+
 # ─── Ansible ───
 # inventory.yml is committed on purpose — it holds no secrets
 /ansible/*.retry
-# The key to the vault. group_vars/all/vault.yml is committed; this never is.
 /ansible/.vault-pass
 
 # ─── Tooling and agent state ───

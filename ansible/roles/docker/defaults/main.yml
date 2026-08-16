@@ -1,6 +1,5 @@
 ---
-# Docker Engine from upstream: the distro package lags, and Compose v2 ships
-# only as a plugin there.
+# Docker Engine from upstream — the distro package lags and has no Compose v2.
 
 docker_packages:
   - docker-ce

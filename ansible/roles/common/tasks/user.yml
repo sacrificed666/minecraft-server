@@ -26,7 +26,7 @@
 # Must land before hardening disables passwords; force=false keeps manual keys
 - name: 📦 Setup | Authorised keys
   ansible.builtin.copy:
-    src: "{{ getent_passwd[ansible_user][4] }}/.ssh/authorized_keys"
+    src: "{{ ansible_facts.getent_passwd[ansible_user][4] }}/.ssh/authorized_keys"
     dest: "{{ common_deploy_home }}/.ssh/authorized_keys"
     remote_src: true
     force: false

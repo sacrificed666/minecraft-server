@@ -1,6 +1,5 @@
 ---
 # Base packages, the deploy user's environment and the limits the JVM needs.
-# timezone and deploy_user are shared — see group_vars/all/main.yml.
 
 common_packages:
   - ca-certificates
@@ -14,13 +13,11 @@ common_packages:
   - unattended-upgrades
   - rsync
 
-# Not a substitute for RAM, but it stops a spike from killing the JVM on a
-# 12 GB host running an 8 GB heap. Set to 0 to skip it.
+# Not a substitute for RAM, but it stops a spike from killing the JVM.
 common_swap_gb: 4
 
 # Minecraft opens a lot of region files and the JVM maps many at once
 common_nofile_limit: 65535
 
-# Declared rather than read back from the created account, so --check works on a
-# host where that account does not exist yet
+# Declared, not read back, so --check works before the account exists.
 common_deploy_home: /home/{{ deploy_user }}

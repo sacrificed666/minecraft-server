@@ -1,15 +1,8 @@
 # Modrinth mod list — one slug per line, comments on their own line.
-# Dependencies resolve automatically; removing a line removes the mod.
-# Pin a build with <slug>:<version-id>, mark optional with <slug>?
-# ":beta" is required where a project has no release build for 1.21.1.
 #
-# This whole set was boot-tested together on NeoForge 21.1.248 / MC 1.21.1:
-# clean start, no mod errors, 20.0 TPS idle in all three dimensions.
+# Boot-tested together on NeoForge 21.1.248 / MC 1.21.1.
 #
-# Almost nothing here is pinned, so Modrinth will hand you newer builds than the
-# ones that were tested, and two of them have already broken this file once.
-# Boot the server after every change — a version conflict aborts mod loading
-# outright, it does not degrade quietly.
+# Almost nothing is pinned, so Modrinth hands out newer builds over time.
 
 # ─── Core ───
 create

@@ -43,11 +43,7 @@ export function StatTile({
   );
 }
 
-/**
- * A ratio against a fixed limit — the right form for memory. Aikar's flags
- * include AlwaysPreTouch, so the heap is committed at startup and a time series
- * would be flat forever; a meter still shows headroom.
- */
+// A ratio against a fixed limit — the right form for memory.
 export function Meter({
   used,
   limit,

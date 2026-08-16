@@ -1,12 +1,7 @@
 import { fetchStatus } from "./mc";
 import { getContainerStats } from "./docker";
 
-/**
- * In-memory time series for the dashboard charts.
- *
- * Not persisted: losing an hour of samples on restart is cheaper than owning a
- * time-series database. Long-term profiling is spark's job, in game.
- */
+// In-memory time series for the dashboard charts.
 
 export type Sample = {
   t: number;
@@ -23,6 +18,7 @@ export type Snapshot = {
   memoryBytes: number | null;
   memoryLimitBytes: number | null;
   cpuPercent: number | null;
+  cpuCores: number | null;
   history: Sample[];
   error?: string;
 };
@@ -71,6 +67,7 @@ async function poll(): Promise<void> {
       memoryBytes: stats?.memoryBytes ?? null,
       memoryLimitBytes: stats?.memoryLimitBytes ?? null,
       cpuPercent: stats?.cpuPercent ?? null,
+      cpuCores: stats?.cpuCores ?? null,
       history: state.samples,
       error: status.error,
     };
@@ -98,6 +95,7 @@ export async function getSnapshot(): Promise<Snapshot> {
       memoryBytes: null,
       memoryLimitBytes: null,
       cpuPercent: null,
+      cpuCores: null,
       history: [],
       error: "no samples yet",
     }

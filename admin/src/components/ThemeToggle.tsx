@@ -12,11 +12,7 @@ const OPTIONS: { value: Theme; label: string; icon: string }[] = [
 
 const EVENT = "themechange";
 
-/**
- * A blocking script in the head applies the stored theme, so the first paint is
- * already correct. This only reflects and edits that state, subscribing rather
- * than syncing in an effect so render stays pure.
- */
+// A blocking script in the head makes the first paint already correct.
 function subscribe(onChange: () => void) {
   window.addEventListener(EVENT, onChange);
   window.addEventListener("storage", onChange);
@@ -29,8 +25,7 @@ function subscribe(onChange: () => void) {
 const readTheme = (): Theme =>
   (localStorage.getItem("theme") as Theme | null) ?? "system";
 
-// The server cannot know the visitor's choice; "system" matches what the
-// pre-hydration script leaves on the element when nothing is stored.
+// "system" matches what the pre-hydration script leaves when nothing is stored.
 const serverTheme = (): Theme => "system";
 
 export function ThemeToggle() {

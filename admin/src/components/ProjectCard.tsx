@@ -1,10 +1,7 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
 
-/**
- * One Modrinth project: icon, title, blurb, and whatever the page needs in the
- * footer. Shared so the Mods and Looks grids stay the same object.
- */
+// One Modrinth project: icon, title, blurb, and whatever the page needs in the footer.
 export function ProjectCard({
   title,
   description,

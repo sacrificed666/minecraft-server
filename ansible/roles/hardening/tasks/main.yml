@@ -1,9 +1,7 @@
 ---
-# SSH policy. The common role runs first and installs the deploy user's key —
-# disabling password auth before that would lock the playbook out of the host.
+# SSH policy.
 
 # A drop-in survives package upgrades, which edits to sshd_config do not.
-# validate catches a typo here rather than after sshd refuses to restart.
 - name: 🔒 Harden | SSH policy
   ansible.builtin.copy:
     dest: /etc/ssh/sshd_config.d/99-hardening.conf

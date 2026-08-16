@@ -2,13 +2,7 @@ import crypto from "node:crypto";
 import { SESSION_COOKIE } from "./constants";
 import type { Role } from "./users";
 
-/**
- * Stateless session cookie: base64url(payload).base64url(HMAC-SHA256).
- *
- * The role travels in the payload, so no store can drift out of sync with the
- * database — at the cost of a role change only applying on the next sign-in,
- * and revocation meaning a SESSION_SECRET rotation.
- */
+// Stateless session cookie: base64url(payload).base64url(HMAC-SHA256).
 
 const COOKIE_NAME = SESSION_COOKIE;
 const MAX_AGE_SECONDS = 60 * 60 * 12;
@@ -66,17 +60,13 @@ export function readSession(token: string | undefined): Session | null {
   }
 }
 
-/**
- * The bootstrap admin from .env. Kept alongside database users so a broken or
- * empty database never locks the operator out of their own server.
- */
+// The bootstrap admin from .env.
 export function checkEnvAdmin(username: string, password: string): boolean {
   const expected = process.env.ADMIN_PASSWORD;
   const expectedUser = process.env.ADMIN_USERNAME ?? "admin";
   if (!expected) return false;
   if (username.toLowerCase() !== expectedUser.toLowerCase()) return false;
-  // Hash both sides: timingSafeEqual needs equal lengths, and the digest hides
-  // the real password's length from the comparison.
+  // Hashed both sides: timingSafeEqual needs equal lengths.
   const a = crypto.createHash("sha256").update(password).digest();
   const b = crypto.createHash("sha256").update(expected).digest();
   return crypto.timingSafeEqual(a, b);

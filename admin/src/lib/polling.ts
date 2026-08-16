@@ -5,19 +5,12 @@ import { useRouter } from "next/navigation";
 
 export type Polled<T> = {
   data: T | null;
-  /** The last attempt failed; `data` is the previous good value. */
+  // The last attempt failed; `data` is the previous good value.
   stale: boolean;
   updatedAt: number | null;
 };
 
-/**
- * Fetches JSON once, then on an interval when one is given.
- *
- * Every page wanted the same four things — no caching, cleanup on unmount, the
- * last good value kept when a request fails, and a session that expired sending
- * the browser back to the login page — and each hand-rolled effect got a
- * different subset of them right.
- */
+// Fetches JSON once, then on an interval when one is given.
 export function usePolled<T>(url: string, intervalMs?: number): Polled<T> {
   const router = useRouter();
   const [state, setState] = useState<Polled<T>>({
@@ -40,8 +33,7 @@ export function usePolled<T>(url: string, intervalMs?: number): Polled<T> {
         const data = (await res.json()) as T;
         if (alive) setState({ data, stale: false, updatedAt: Date.now() });
       } catch {
-        // Mark it rather than blanking the page — the old reading is still
-        // more useful than an empty one.
+        // Marked, not blanked — a stale reading beats an empty one.
         if (alive) setState((prev) => ({ ...prev, stale: true }));
       }
     };

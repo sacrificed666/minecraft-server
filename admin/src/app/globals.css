@@ -1,13 +1,6 @@
 @import "tailwindcss";
 
-/*
- * Design tokens.
- *
- * Chart series colours come from a validated categorical palette — checked with
- * the data-viz validator against the two glass surfaces below (worst adjacent
- * CVD ΔE 9.2 light / 9.4 dark, normal-vision 27.6 / 26.5). Do not hand-tune
- * them: re-run the validator if they ever change.
- */
+/* Design tokens. */
 
 :root {
   color-scheme: light;
@@ -125,11 +118,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/*
- * Component styles live in a layer so Tailwind utilities can override them.
- * Unlayered CSS beats every layer, which silently turned `glass fixed`
- * into `position: relative` and collapsed the mobile layout.
- */
+/* Component styles live in a layer so Tailwind utilities can override them. */
 @layer components {
   /* ─── Ambient background ───────────────────────────────────────────── */
 
@@ -155,12 +144,7 @@ body {
     mask-image: radial-gradient(120% 80% at 50% 0%, #000 20%, transparent 75%);
   }
 
-  /*
-   * The blobs used to sit level with the content, so each card sampled a
-   * different one and came out a different colour. They live above the fold
-   * now, and the scrim below fades them out before the cards start: the glass
-   * stays translucent, but every card samples the same neutral field.
-   */
+  /* The blobs used to sit level with the content, so each card sampled a */
   .blob {
     position: absolute;
     border-radius: 50%;
@@ -228,7 +212,7 @@ body {
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
   }
 
-  /* A pointer can hover; a finger cannot. Lifting cards on tap reads as lag. */
+  /* A pointer can hover; a finger cannot. */
   @media (hover: none) {
     .glass-hover:hover {
       transform: none;

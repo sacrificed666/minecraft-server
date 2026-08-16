@@ -5,12 +5,9 @@
 minecraft_enable_proxy: true
 
 # Written into .env on the host after `make init` has generated the secrets.
-# Only non-secret values belong here — passwords stay on the server.
 minecraft_env_overrides: {}
 
-# The nightly BlueMap window, in the host timezone. Rendering starts at 04:00
-# and the maps freeze again at 08:00 — long enough for a full catch-up, done
-# before anyone is likely to be online.
+# The nightly BlueMap window, in the host timezone.
 minecraft_map_render_cron: { hour: 4, minute: 0 }
 minecraft_map_pause_cron: { hour: 8, minute: 0 }
 

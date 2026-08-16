@@ -1,0 +1,10 @@
+# Everything the server executes must arrive with LF endings, whatever the
+# checkout platform does. core.autocrlf=true on Windows would otherwise commit
+# CRLF into a shell script, and Linux answers that with "bad interpreter".
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.zip binary
+*.jar binary

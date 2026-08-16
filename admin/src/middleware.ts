@@ -1,12 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/constants";
 
-/**
- * Gates every route except the login page and endpoint.
- *
- * Only checks that a cookie is present: middleware runs on the edge runtime,
- * where node:crypto is unavailable. lib/guard.ts is the real check.
- */
+// Gates every route except the login page and endpoint.
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasCookie = Boolean(request.cookies.get(SESSION_COOKIE)?.value);

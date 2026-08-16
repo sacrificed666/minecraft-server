@@ -1,6 +1,5 @@
 ---
-# Host baseline, split by concern. Order matters: the deploy user exists before
-# the hardening role locks SSH down to key-only logins.
+# Host baseline, split by concern.
 
 - name: ⚙️ Config | System defaults
   ansible.builtin.include_tasks: system.yml

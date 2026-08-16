@@ -5,13 +5,7 @@ import { IconCopy, IconDice, IconEye, IconEyeOff } from "./Icons";
 import { useToast } from "./Toast";
 import { generatePassword } from "@/lib/password";
 
-/**
- * A password the admin is handing to someone: masked until asked for, copyable,
- * and editable in place.
- *
- * It never shows an existing password — those are stored as scrypt hashes and
- * cannot be read back. What it holds is whatever was just typed or generated.
- */
+// Masked until asked for, copyable, editable in place.
 export function PasswordField({
   value,
   onChange,
