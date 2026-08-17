@@ -5,90 +5,109 @@
 # Almost nothing is pinned, so Modrinth hands out newer builds over time.
 
 # ─── Core ───
-create
+create:6.0.10+mc1.21.1
 
 # ─── Create: machines and logistics ───
-createaddition
-create-diesel-generators
-create-new-age
-create-liquid-fuel
-create-tfmg
-create-power-loader
-create-contraption-terminals
-create-tweaked-controllers
-create-compatible-storage
-create-ultimate-factory
-create-factory
-create-pattern-schematics
-create-ore-excavation
-create-enchantment-industry
-slice-and-dice
-power-grid
-create-alloyed
-create-sifting:beta
-createnuclear:beta
+createaddition:neoforge-1.21.1-1.6.0
+create-diesel-generators:1.21.1-1.3.15
+create-new-age:1.2.0+mc1.21.1
+create-liquid-fuel:2.1.1-1.21.1
+create-tfmg:1.2.0
+create-power-loader:2.0.5-mc1.21.1
+create-contraption-terminals:1.21.1-1.4.0
+create-tweaked-controllers:1.21.1-1.2.7
+create-compatible-storage:2.13.0-mc1.21.1-neoforge
+create-ultimate-factory:2.2.4
+create-factory:0.7b-1.21.1
+create-pattern-schematics:2.0.10
+create-ore-excavation:1.21.1-1.6.8
+create-enchantment-industry:2.4.2
+slice-and-dice:4.3.3
+power-grid:0.6.0.1
+create-alloyed:3.0.7+1.21.1-neoforge
+create-sifting:1.21.1-2.3.0
+createnuclear:1.3.2-beta.3
 
 # ─── Create: transport and combat ───
-create-aeronautics
-create-big-cannons
-create-railways-navigator:beta
-dragonlib:beta
-create-jetpack
-create-radars
-create-steam-n-rails-1.21.1
-blocks-bogies
-create-threaded-trains
-hypertube
+create-aeronautics:1.3.0+mc1.21.1
+create-big-cannons:5.11.7
+create-railways-navigator:1.21.1-beta-0.9.1-C6
+dragonlib:1.21.1-beta-3.0.28
+create-jetpack:5.2.1
+create-radars:0.4.9.4-1.21.1
+create-steam-n-rails-1.21.1:0.2.1+neoforge-mc1.21.1
+blocks-bogies:1.0.7-1.21.1
+create-threaded-trains:1.21.1-1.0.0
+hypertube:0.6.0
 
 # ─── Create: building and decoration ───
-copycats
-create-deco
-create-design-n-decor
-create-framed
-create-encased
-create_oxidized
-create-copper-zinc
-interiors
-bellsandwhistles
-rechiseled-create
-create-misc-and-things
-create-stuff-additions
+copycats:3.0.4+mc.1.21.1-neoforge
+create-deco:2.1.3
+create-design-n-decor:2.2b
+create-framed:1.8.2+1.21.1
+create-encased:1.21.1-1.9.0-ht3
+create_oxidized:0.1.3
+create-copper-zinc:2.0.0
+interiors:0.6.1
+bellsandwhistles:v0.4.7-1.21.1
+rechiseled-create:1.1.1-neoforge-mc1.21
+create-misc-and-things:4.1.1
+create-stuff-additions:2.1.4.a
 
 # ─── Create: world and progression ───
-create-connected
-create-central-kitchen
-create-food
-create-structures-arise
-create-let-the-adventure-begin
-create-dreams-and-desires
-create-dragons-plus
-create-trading-floor
-numismatics
-create-bitterballen
-farmers-delight
-delightful-creators
-create-goggles:beta
+create-connected:1.3.2-mc1.21.1
+create-central-kitchen:2.6.0
+create-food:2.7.1
+create-structures-arise:176.49.48
+create-let-the-adventure-begin:4.1.0
+create-dreams-and-desires:2.3a-BETA
+create-dragons-plus:1.11.7b
+create-trading-floor:3.0.16
+numismatics:1.0.20+neoforge-mc1.21.1
+create-bitterballen:1.0.2C
+farmers-delight:1.21.1-1.3.2
+delightful-creators:1.2.1
+create-goggles:6.1.1
 
 # ─── Performance ───
-ferrite-core
-lithium
-modernfix
-clumps
+ferrite-core:7.0.3-neoforge
+lithium:mc1.21.1-0.15.4-neoforge
+modernfix:5.27.20+mc1.21.1
+clumps:19.0.0.1
 
 # ─── Client: interface and quality of life ───
-jei:beta
-jade
-appleskin
-shulkerboxtooltip
-enchantment-descriptions
+jei:19.44.0.401
+jade:15.10.6+neoforge
+appleskin:3.0.9+mc1.21
+shulkerboxtooltip:5.1.9+1.21.1-neoforge
+enchantment-descriptions:21.1.10
 
 # ─── Multiplayer ───
-simple-voice-chat
-what-are-they-up-to
-journeymap
-no-chat-reports
+simple-voice-chat:neoforge-1.21.1-2.6.22
+what-are-they-up-to:1.21.0-1.2.7
+journeymap:1.21.1-6.0.5+neoforge
+no-chat-reports:NeoForge-1.21.1-v2.9.1
 
 # ─── Server tools ───
-spark
-chunky
-bluemap
+spark:1.10.124-neoforge-1.21.1
+chunky:1.4.23
+bluemap:5.7-neoforge
+
+# ─── Pulled in as dependencies ───
+# Listed so their versions are fixed too. Left implicit, the resolver is free
+# to raise them on any restart — which is how sable moved from 2.0.3 to 2.0.4
+# and locked every player out on a changed network channel.
+
+architectury-api:13.0.11+neoforge
+bookshelf-lib:21.1.81
+coroutil:1.21.0-1.3.8
+fusion-connected-textures:1.3.12-neoforge-mc1.21.1
+kotlin-for-forge:5.12.0
+mechanicals-lib:1.21.1-1.1.6
+prickle:21.1.11
+rechiseled:1.2.5-neoforge-mc1.21
+rpl:2.1.2
+sable:2.0.3+mc1.21.1
+supermartijn642s-config-lib:1.1.8-neoforge-mc1.21
+supermartijn642s-core-lib:1.1.24-neoforge-mc1.21
+toms-storage:1.21-2.4.1

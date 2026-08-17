@@ -9,24 +9,24 @@
 # Iris takes ":beta" for a reason, and dropping it costs every player their client.
 #
 # Update Iris and Sodium together, and check a client actually starts.
-sodium
-sodium-extra
-iris:beta
+sodium:mc1.21.1-0.8.12-neoforge
+sodium-extra:mc1.21.1-0.9.3+neoforge
+iris:1.8.14-beta.1+1.21.1-neoforge
 
-entityculling
-immediatelyfast
-moreculling
-dynamic-fps
-controlling
-mouse-tweaks
-betterf3
-chat-heads
-chatanimation
-not-enough-animations
-durability-tooltip
-chat-tools
-longer-chat-history
+entityculling:1.10.5
+immediatelyfast:1.6.12+1.21.1-neoforge
+moreculling:1.0.9
+dynamic-fps:3.11.4
+controlling:19.0.5
+mouse-tweaks:1.21-2.26.1-neoforge
+betterf3:11.0.3
+chat-heads:0.15.7
+chatanimation:1.3.1+neoforge-1.21
+not-enough-animations:1.12.4
+durability-tooltip:1.1.6-neoforge-mc1.21
+chat-tools:2.4.3.1
+longer-chat-history:1.7
 
 # Libraries the mods above need.
-cloth-config
-searchables
+cloth-config:15.0.140+neoforge
+searchables:1.0.2
