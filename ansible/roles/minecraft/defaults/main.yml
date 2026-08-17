@@ -11,4 +11,8 @@ minecraft_env_overrides: {}
 minecraft_map_render_cron: { hour: 4, minute: 0 }
 minecraft_map_pause_cron: { hour: 8, minute: 0 }
 
+# 0 renders the whole world, pre-generated wilderness included; 1 keeps the map
+# to where players have actually been, and it grows as they explore.
+minecraft_map_min_inhabited_time: 1
+
 minecraft_cron_log: /var/log/minecraft-cron.log

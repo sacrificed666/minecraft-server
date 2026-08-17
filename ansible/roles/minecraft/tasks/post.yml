@@ -24,6 +24,19 @@
     'id rewritten' in minecraft_ids.stdout or
     'duplicate dropped' in minecraft_ids.stdout
 
+# BlueMap writes these on first boot, so they cannot be shipped in the repo.
+# Without this it renders every pre-generated chunk, visited or not — which for
+# a radius of 5000 is 390k chunks nobody has ever stood in.
+- name: ⚙️ Config | Render only chunks players have visited
+  become: true
+  become_user: "{{ deploy_user }}"
+  ansible.builtin.lineinfile:
+    path: "{{ deploy_path }}/server/data/config/bluemap/maps/{{ item }}.conf"
+    regexp: "^min-inhabited-time:"
+    line: "min-inhabited-time: {{ minecraft_map_min_inhabited_time }}"
+  loop: [world, world_the_nether, world_the_end]
+  failed_when: false
+
 - name: ⏰ Schedule | Nightly jobs
   ansible.builtin.include_tasks: cron.yml
 
